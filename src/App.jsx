@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, Route, Routes, useNavigate } from "react-router-dom";
+import { Link, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 
 const AUTH_TOKEN_KEY = "reports_admin_token";
 
@@ -366,10 +366,8 @@ const ReportFormView = () => {
       ) : null}
 
       <div className="footer-row">
-        <p className="footer-note">© Congregación El Puente Monte Tabor</p>
-        <Link className="footer-link" to="/login">
-          Acceso administrativo
-        </Link>
+        <p className="footer-note">© Congregación El Puente Monte Tabor | <Link className="footer-link" to="/login">Acceso</Link>
+        </p>   
       </div>
     </section>
   );
@@ -490,6 +488,7 @@ const AdminView = ({ authToken, onLogout }) => {
   const [loadError, setLoadError] = useState("");
   const [selectedMonthKey, setSelectedMonthKey] = useState("");
   const [editingId, setEditingId] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [submitStatus, setSubmitStatus] = useState("idle");
   const [submitMessage, setSubmitMessage] = useState("");
 
@@ -528,6 +527,20 @@ const AdminView = ({ authToken, onLogout }) => {
     setAdminForm(buildDefaultAdminForm(monthKey));
     setEditingId(null);
     setFormErrors({});
+  };
+
+  const openNewModal = () => {
+    resetAdminForm(defaultMonthKey);
+    setSubmitMessage("");
+    setSubmitStatus("idle");
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    resetAdminForm(defaultMonthKey);
+    setSubmitMessage("");
+    setSubmitStatus("idle");
+    setIsModalOpen(false);
   };
 
   const validateAdminForm = () => {
@@ -611,6 +624,9 @@ const AdminView = ({ authToken, onLogout }) => {
       courses: report.courses || "",
       comments: report.comments || "",
     });
+    setSubmitMessage("");
+    setSubmitStatus("idle");
+    setIsModalOpen(true);
   };
 
   const handleDelete = async (reportId) => {
@@ -696,6 +712,7 @@ const AdminView = ({ authToken, onLogout }) => {
         editingId ? "El registro fue actualizado." : "El registro fue agregado."
       );
       resetAdminForm(defaultMonthKey);
+      setIsModalOpen(false);
       await loadReports();
     } catch (error) {
       setSubmitStatus("error");
@@ -751,172 +768,194 @@ const AdminView = ({ authToken, onLogout }) => {
       </div>
 
       <div className="admin-toolbar">
-        <button
-          className="secondary-button"
-          type="button"
-          onClick={() => resetAdminForm(defaultMonthKey)}
-        >
+        <button className="secondary-button" type="button" onClick={openNewModal}>
           Nuevo registro
         </button>
       </div>
 
-      <form className="form" onSubmit={handleAdminSubmit} noValidate>
-        <div className="field">
-          <label htmlFor="admin-month">
-            Mes del informe <span className="required">*</span>
-          </label>
-          <input
-            id="admin-month"
-            name="admin-month"
-            type="month"
-            value={adminForm.reportMonthKey}
-            onChange={(event) => updateAdminForm("reportMonthKey", event.target.value)}
-            aria-invalid={Boolean(formErrors.reportMonthKey)}
-            aria-describedby={formErrors.reportMonthKey ? "month-error" : undefined}
-            required
-          />
-          {formErrors.reportMonthKey ? (
-            <span id="month-error" className="error">
-              {formErrors.reportMonthKey}
-            </span>
-          ) : null}
-        </div>
+      {isModalOpen ? (
+        <div className="modal-overlay" role="dialog" aria-modal="true">
+          <div className="modal">
+            <div className="modal-header">
+              <div>
+                <p className="brand">Registro manual</p>
+                <h2 className="modal-title">
+                  {editingId ? "Editar informe" : "Agregar informe"}
+                </h2>
+              </div>
+              <button className="modal-close" type="button" onClick={closeModal}>
+                Cerrar
+              </button>
+            </div>
 
-        <div className="field">
-          <label htmlFor="admin-name">
-            Nombre <span className="required">*</span>
-          </label>
-          <input
-            id="admin-name"
-            name="admin-name"
-            type="text"
-            value={adminForm.name}
-            onChange={(event) => updateAdminForm("name", event.target.value)}
-            aria-invalid={Boolean(formErrors.name)}
-            aria-describedby={formErrors.name ? "admin-name-error" : undefined}
-            required
-          />
-          {formErrors.name ? (
-            <span id="admin-name-error" className="error">
-              {formErrors.name}
-            </span>
-          ) : null}
-        </div>
+            <form className="form modal-body" onSubmit={handleAdminSubmit} noValidate>
+              <div className="field">
+                <label htmlFor="admin-month">
+                  Mes del informe <span className="required">*</span>
+                </label>
+                <input
+                  id="admin-month"
+                  name="admin-month"
+                  type="month"
+                  value={adminForm.reportMonthKey}
+                  onChange={(event) =>
+                    updateAdminForm("reportMonthKey", event.target.value)
+                  }
+                  aria-invalid={Boolean(formErrors.reportMonthKey)}
+                  aria-describedby={formErrors.reportMonthKey ? "month-error" : undefined}
+                  required
+                />
+                {formErrors.reportMonthKey ? (
+                  <span id="month-error" className="error">
+                    {formErrors.reportMonthKey}
+                  </span>
+                ) : null}
+              </div>
 
-        <fieldset className="field">
-          <legend>
-            Participación <span className="required">*</span>
-          </legend>
-          <div className="options">
-            <label className="option">
-              <input
-                type="radio"
-                name="admin-participation"
-                value="Sí participé."
-                checked={adminForm.participation === "Sí participé."}
-                onChange={(event) => updateAdminForm("participation", event.target.value)}
-                required
-              />
-              Sí participé.
-            </label>
-            <label className="option">
-              <input
-                type="radio"
-                name="admin-participation"
-                value="No participé."
-                checked={adminForm.participation === "No participé."}
-                onChange={(event) => updateAdminForm("participation", event.target.value)}
-                required
-              />
-              No participé.
-            </label>
+              <div className="field">
+                <label htmlFor="admin-name">
+                  Nombre <span className="required">*</span>
+                </label>
+                <input
+                  id="admin-name"
+                  name="admin-name"
+                  type="text"
+                  value={adminForm.name}
+                  onChange={(event) => updateAdminForm("name", event.target.value)}
+                  aria-invalid={Boolean(formErrors.name)}
+                  aria-describedby={formErrors.name ? "admin-name-error" : undefined}
+                  required
+                />
+                {formErrors.name ? (
+                  <span id="admin-name-error" className="error">
+                    {formErrors.name}
+                  </span>
+                ) : null}
+              </div>
+
+              <fieldset className="field">
+                <legend>
+                  Participación <span className="required">*</span>
+                </legend>
+                <div className="options">
+                  <label className="option">
+                    <input
+                      type="radio"
+                      name="admin-participation"
+                      value="Sí participé."
+                      checked={adminForm.participation === "Sí participé."}
+                      onChange={(event) =>
+                        updateAdminForm("participation", event.target.value)
+                      }
+                      required
+                    />
+                    Sí participé.
+                  </label>
+                  <label className="option">
+                    <input
+                      type="radio"
+                      name="admin-participation"
+                      value="No participé."
+                      checked={adminForm.participation === "No participé."}
+                      onChange={(event) =>
+                        updateAdminForm("participation", event.target.value)
+                      }
+                      required
+                    />
+                    No participé.
+                  </label>
+                </div>
+                {formErrors.participation ? (
+                  <span className="error">{formErrors.participation}</span>
+                ) : null}
+              </fieldset>
+
+              <div className="field">
+                <label htmlFor="admin-hours">
+                  Horas (para precursores auxiliares y regulares)
+                </label>
+                <input
+                  id="admin-hours"
+                  name="admin-hours"
+                  type="number"
+                  min="0"
+                  inputMode="numeric"
+                  value={adminForm.hours}
+                  onChange={(event) => updateAdminForm("hours", event.target.value)}
+                  aria-invalid={Boolean(formErrors.hours)}
+                  aria-describedby={formErrors.hours ? "admin-hours-error" : undefined}
+                />
+                {formErrors.hours ? (
+                  <span id="admin-hours-error" className="error">
+                    {formErrors.hours}
+                  </span>
+                ) : null}
+              </div>
+
+              <div className="field">
+                <label htmlFor="admin-courses">
+                  Número de diferentes cursos bíblicos dirigidos
+                </label>
+                <input
+                  id="admin-courses"
+                  name="admin-courses"
+                  type="number"
+                  min="0"
+                  inputMode="numeric"
+                  value={adminForm.courses}
+                  onChange={(event) => updateAdminForm("courses", event.target.value)}
+                  aria-invalid={Boolean(formErrors.courses)}
+                  aria-describedby={formErrors.courses ? "admin-courses-error" : undefined}
+                />
+                {formErrors.courses ? (
+                  <span id="admin-courses-error" className="error">
+                    {formErrors.courses}
+                  </span>
+                ) : null}
+              </div>
+
+              <div className="field">
+                <label htmlFor="admin-comments">Comentarios</label>
+                <textarea
+                  id="admin-comments"
+                  name="admin-comments"
+                  rows="4"
+                  value={adminForm.comments}
+                  onChange={(event) => updateAdminForm("comments", event.target.value)}
+                />
+              </div>
+
+              <div className="form-actions">
+                <button
+                  className="submit"
+                  type="submit"
+                  disabled={submitStatus === "loading"}
+                >
+                  {submitStatus === "loading"
+                    ? "Guardando..."
+                    : editingId
+                    ? "Actualizar informe"
+                    : "Agregar informe"}
+                </button>
+                <button className="secondary-button" type="button" onClick={closeModal}>
+                  Cancelar
+                </button>
+              </div>
+
+              {submitMessage ? (
+                <div
+                  className={`feedback ${
+                    submitStatus === "success" ? "success" : "error"
+                  }`}
+                  role="status"
+                >
+                  {submitMessage}
+                </div>
+              ) : null}
+            </form>
           </div>
-          {formErrors.participation ? (
-            <span className="error">{formErrors.participation}</span>
-          ) : null}
-        </fieldset>
-
-        <div className="field">
-          <label htmlFor="admin-hours">
-            Horas (para precursores auxiliares y regulares)
-          </label>
-          <input
-            id="admin-hours"
-            name="admin-hours"
-            type="number"
-            min="0"
-            inputMode="numeric"
-            value={adminForm.hours}
-            onChange={(event) => updateAdminForm("hours", event.target.value)}
-            aria-invalid={Boolean(formErrors.hours)}
-            aria-describedby={formErrors.hours ? "admin-hours-error" : undefined}
-          />
-          {formErrors.hours ? (
-            <span id="admin-hours-error" className="error">
-              {formErrors.hours}
-            </span>
-          ) : null}
         </div>
-
-        <div className="field">
-          <label htmlFor="admin-courses">Número de diferentes cursos bíblicos dirigidos</label>
-          <input
-            id="admin-courses"
-            name="admin-courses"
-            type="number"
-            min="0"
-            inputMode="numeric"
-            value={adminForm.courses}
-            onChange={(event) => updateAdminForm("courses", event.target.value)}
-            aria-invalid={Boolean(formErrors.courses)}
-            aria-describedby={formErrors.courses ? "admin-courses-error" : undefined}
-          />
-          {formErrors.courses ? (
-            <span id="admin-courses-error" className="error">
-              {formErrors.courses}
-            </span>
-          ) : null}
-        </div>
-
-        <div className="field">
-          <label htmlFor="admin-comments">Comentarios</label>
-          <textarea
-            id="admin-comments"
-            name="admin-comments"
-            rows="4"
-            value={adminForm.comments}
-            onChange={(event) => updateAdminForm("comments", event.target.value)}
-          />
-        </div>
-
-        <div className="form-actions">
-          <button className="submit" type="submit" disabled={submitStatus === "loading"}>
-            {submitStatus === "loading"
-              ? "Guardando..."
-              : editingId
-              ? "Actualizar informe"
-              : "Agregar informe"}
-          </button>
-          {editingId ? (
-            <button
-              className="secondary-button"
-              type="button"
-              onClick={() => resetAdminForm(defaultMonthKey)}
-            >
-              Cancelar edición
-            </button>
-          ) : null}
-        </div>
-
-        {submitMessage ? (
-          <div
-            className={`feedback ${submitStatus === "success" ? "success" : "error"}`}
-            role="status"
-          >
-            {submitMessage}
-          </div>
-        ) : null}
-      </form>
+      ) : null}
 
       <div className="table-wrapper">
         <table className="table">
@@ -998,6 +1037,8 @@ const NotFoundView = () => (
 
 export default function App() {
   const [authToken, setAuthToken] = useState("");
+  const location = useLocation();
+  const isAdminRoute = location.pathname.startsWith("/admin");
 
   useEffect(() => {
     setAuthToken(getStoredToken());
@@ -1015,7 +1056,7 @@ export default function App() {
 
   return (
     <div className="page">
-      <main className="card">
+      <main className={`card ${isAdminRoute ? "card-wide" : ""}`}>
         <Routes>
           <Route path="/" element={<ReportFormView />} />
           <Route path="/login" element={<LoginView onLogin={handleLogin} />} />
