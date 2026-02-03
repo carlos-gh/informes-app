@@ -132,13 +132,11 @@ export default function App() {
     try {
       const response = await fetch(endpointUrl, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        mode: "no-cors",
         body: JSON.stringify(payload),
       });
 
-      if (!response.ok) {
+      if (response.type !== "opaque" && !response.ok) {
         throw new Error("Network response was not ok");
       }
 
