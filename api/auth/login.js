@@ -1,5 +1,6 @@
 import { createToken, validateCredentials } from "../_lib/auth.js";
 import { readJsonBody } from "../_lib/request.js";
+import { getRequestIp, verifyTurnstileToken } from "../_lib/turnstile.js";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -13,7 +14,22 @@ export default async function handler(req, res) {
     return;
   }
 
-  const { username = "", password = "" } = body;
+  const { username = "", password = "", turnstileToken = "" } = body;
+
+  const verification = await verifyTurnstileToken({
+    token: String(turnstileToken),
+    ip: getRequestIp(req),
+  });
+
+  if (verification.error === "Missing secret") {
+    res.status(500).json({ error: "Missing captcha secret" });
+    return;
+  }
+
+  if (!verification.ok) {
+    res.status(401).json({ error: "Captcha invalid" });
+    return;
+  }
 
   if (!validateCredentials(String(username), String(password))) {
     res.status(401).json({ error: "Unauthorized" });

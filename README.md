@@ -14,6 +14,8 @@ Defina estas variables en Vercel y en `.env.local` para desarrollo local:
 - `ADMIN_USERNAME`: usuario administrador.
 - `ADMIN_PASSWORD`: contraseña del administrador.
 - `ADMIN_TOKEN_SECRET`: cadena secreta para firmar los tokens (larga y aleatoria).
+- `TURNSTILE_SECRET_KEY`: clave secreta de Cloudflare Turnstile.
+- `VITE_TURNSTILE_SITE_KEY`: clave pública de Cloudflare Turnstile.
 
 Si desarrolla localmente, agregue también la cadena de conexión de Postgres en:
 
@@ -24,6 +26,14 @@ Si desarrolla localmente, agregue también la cadena de conexión de Postgres en
 - Ruta pública: `/` (formulario de informes).
 - Ruta de acceso: `/login`.
 - Panel de administración: `/admin`.
+
+## Captcha en login (Cloudflare Turnstile)
+
+1. Cree un sitio en Cloudflare Turnstile.
+2. Copie la clave pública (site key) y la clave secreta (secret key).
+3. Configure las variables:
+   - `VITE_TURNSTILE_SITE_KEY` (frontend).
+   - `TURNSTILE_SECRET_KEY` (backend).
 
 ## Despliegue en Vercel
 
