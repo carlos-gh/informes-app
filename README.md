@@ -1,17 +1,39 @@
 # Informes Mensuales
 
-## Configuración de Google Sheets
+## Base de datos en Vercel (Neon)
 
-1. Cree un Google Spreadsheet y copie su ID.
-2. En Google Apps Script, cree un nuevo proyecto y agregue un Web App que reciba solicitudes `POST`.
-3. En el script, configure el ID del Spreadsheet y escriba los datos recibidos en una nueva fila.
-4. Publique el Web App con acceso "Cualquiera" y copie la URL de despliegue.
-5. En este proyecto, cree un archivo `.env.local` y defina:
-   - `VITE_GOOGLE_SCRIPT_URL`: URL del Web App de Google Apps Script.
+1. En Vercel, cree un proyecto y agregue una base de datos Postgres (Neon).
+2. Vincule la base de datos al proyecto.
+3. Vercel inyectará las variables de conexión necesarias (como `POSTGRES_URL`).
+4. La primera vez que se use el API, la tabla `reports` se crea automáticamente.
+
+## Variables de entorno
+
+Defina estas variables en Vercel y en `.env.local` para desarrollo local:
+
+- `ADMIN_USERNAME`: usuario administrador.
+- `ADMIN_PASSWORD`: contraseña del administrador.
+- `ADMIN_TOKEN_SECRET`: cadena secreta para firmar los tokens (larga y aleatoria).
+
+Si desarrolla localmente, agregue también la cadena de conexión de Postgres en:
+
+- `POSTGRES_URL`: URL de conexión de la base de datos.
+
+## Flujo de trabajo
+
+- Ruta pública: `/` (formulario de informes).
+- Ruta de acceso: `/login`.
+- Panel de administración: `/admin`.
 
 ## Despliegue en Vercel
 
 1. Suba este repositorio a GitHub.
 2. En Vercel, importe el repositorio.
-3. En la configuración del proyecto, agregue la variable de entorno `VITE_GOOGLE_SCRIPT_URL`.
+3. Configure las variables de entorno indicadas arriba.
 4. Ejecute el despliegue.
+
+## Desarrollo local
+
+1. Instale dependencias: `npm install`.
+2. Inicie el frontend: `npm run dev`.
+3. Para probar el backend localmente, use `vercel dev` con las variables de entorno configuradas.
