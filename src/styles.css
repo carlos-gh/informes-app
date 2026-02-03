@@ -482,11 +482,7 @@ input:disabled {
 }
 
 .footer-link {
-  color: inherit;
-}
-
-.footer-link:hover {
-  text-decoration: underline;
+  color: #64748b;
 }
 
 .footer-button {
