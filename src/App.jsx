@@ -97,29 +97,6 @@ const clearToken = () => {
   localStorage.removeItem(AUTH_TOKEN_KEY);
 };
 
-const Navigation = ({ isAuthenticated, onLogout }) => {
-  return (
-    <nav className="nav">
-      <Link className="nav-link" to="/">
-        Formulario
-      </Link>
-      <Link className="nav-link" to="/login">
-        Acceso
-      </Link>
-      {isAuthenticated ? (
-        <Link className="nav-link" to="/admin">
-          Registros
-        </Link>
-      ) : null}
-      {isAuthenticated ? (
-        <button className="nav-button" type="button" onClick={onLogout}>
-          Cerrar sesión
-        </button>
-      ) : null}
-    </nav>
-  );
-};
-
 const ReportFormView = () => {
   const currentDate = useMemo(() => new Date(), []);
   const reportDate = useMemo(() => getReportDate(currentDate), [currentDate]);
@@ -387,6 +364,13 @@ const ReportFormView = () => {
           ) : null}
         </form>
       ) : null}
+
+      <div className="footer-row">
+        <p className="footer-note">© Congregación El Puente Monte Tabor</p>
+        <Link className="footer-link" to="/login">
+          Acceso administrativo
+        </Link>
+      </div>
     </section>
   );
 };
@@ -504,7 +488,7 @@ const AdminView = ({ authToken, onLogout }) => {
   const [reports, setReports] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState("");
-  const [filterMonthKey, setFilterMonthKey] = useState("all");
+  const [selectedMonthKey, setSelectedMonthKey] = useState("");
   const [editingId, setEditingId] = useState(null);
   const [submitStatus, setSubmitStatus] = useState("idle");
   const [submitMessage, setSubmitMessage] = useState("");
@@ -516,19 +500,22 @@ const AdminView = ({ authToken, onLogout }) => {
   const isAuthenticated = Boolean(authToken);
 
   const monthOptions = useMemo(() => {
-    const uniqueKeys = new Set(reports.map((report) => report.reportMonthKey));
+    const uniqueKeys = new Set([
+      defaultMonthKey,
+      ...reports.map((report) => report.reportMonthKey),
+    ]);
     return Array.from(uniqueKeys)
       .filter(Boolean)
       .sort((a, b) => b.localeCompare(a));
   }, [reports]);
 
   const filteredReports = useMemo(() => {
-    if (filterMonthKey === "all") {
+    if (!selectedMonthKey) {
       return reports;
     }
 
-    return reports.filter((report) => report.reportMonthKey === filterMonthKey);
-  }, [reports, filterMonthKey]);
+    return reports.filter((report) => report.reportMonthKey === selectedMonthKey);
+  }, [reports, selectedMonthKey]);
 
   const updateAdminForm = (field, value) => {
     setAdminForm((previous) => ({
@@ -608,6 +595,12 @@ const AdminView = ({ authToken, onLogout }) => {
     loadReports();
   }, [authToken]);
 
+  useEffect(() => {
+    if (monthOptions.length > 0 && !selectedMonthKey) {
+      setSelectedMonthKey(monthOptions[0]);
+    }
+  }, [monthOptions, selectedMonthKey]);
+
   const handleEdit = (report) => {
     setEditingId(report.id);
     setAdminForm({
@@ -618,6 +611,42 @@ const AdminView = ({ authToken, onLogout }) => {
       courses: report.courses || "",
       comments: report.comments || "",
     });
+  };
+
+  const handleDelete = async (reportId) => {
+    if (!window.confirm("¿Desea eliminar este registro?")) {
+      return;
+    }
+
+    setSubmitMessage("");
+    setSubmitStatus("loading");
+
+    try {
+      const response = await fetch(`/api/reports/${reportId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+        },
+      });
+
+      if (response.status === 401) {
+        onLogout();
+        setSubmitStatus("error");
+        setSubmitMessage("Su sesión expiró. Inicie sesión de nuevo.");
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error("Failed to delete report");
+      }
+
+      setSubmitStatus("success");
+      setSubmitMessage("El registro fue eliminado.");
+      await loadReports();
+    } catch (error) {
+      setSubmitStatus("error");
+      setSubmitMessage("No se pudo eliminar el registro.");
+    }
   };
 
   const handleAdminSubmit = async (event) => {
@@ -688,27 +717,40 @@ const AdminView = ({ authToken, onLogout }) => {
 
   return (
     <section className="admin">
-      <h1 className="title">Administración de informes</h1>
-      <p className="subtitle">
-        Revise el historial, agregue registros manuales o edite los informes existentes.
-      </p>
+      <div className="admin-header">
+        <div>
+          <p className="brand">Panel administrativo</p>
+          <h1 className="title">Registros de informes</h1>
+          <p className="subtitle">
+            Revise el historial por mes, agregue registros manuales o edite los existentes.
+          </p>
+        </div>
+        <div className="admin-actions">
+          <Link className="nav-link" to="/">
+            Volver al formulario
+          </Link>
+          <button className="nav-button" type="button" onClick={onLogout}>
+            Cerrar sesión
+          </button>
+        </div>
+      </div>
+
+      <div className="month-list">
+        {monthOptions.map((monthKey) => (
+          <button
+            key={monthKey}
+            type="button"
+            className={`month-button ${
+              monthKey === selectedMonthKey ? "active" : ""
+            }`}
+            onClick={() => setSelectedMonthKey(monthKey)}
+          >
+            {getReportingLabelFromKey(monthKey)}
+          </button>
+        ))}
+      </div>
 
       <div className="admin-toolbar">
-        <div className="field">
-          <label htmlFor="filter-month">Filtrar por mes</label>
-          <select
-            id="filter-month"
-            value={filterMonthKey}
-            onChange={(event) => setFilterMonthKey(event.target.value)}
-          >
-            <option value="all">Todos los meses</option>
-            {monthOptions.map((monthKey) => (
-              <option key={monthKey} value={monthKey}>
-                {getReportingLabelFromKey(monthKey)}
-              </option>
-            ))}
-          </select>
-        </div>
         <button
           className="secondary-button"
           type="button"
@@ -918,13 +960,22 @@ const AdminView = ({ authToken, onLogout }) => {
                   <td>{report.comments || "-"}</td>
                   <td>{formatDateTime(report.submittedAt)}</td>
                   <td>
-                    <button
-                      className="table-button"
-                      type="button"
-                      onClick={() => handleEdit(report)}
-                    >
-                      Editar
-                    </button>
+                    <div className="table-actions">
+                      <button
+                        className="table-button"
+                        type="button"
+                        onClick={() => handleEdit(report)}
+                      >
+                        Editar
+                      </button>
+                      <button
+                        className="table-button danger"
+                        type="button"
+                        onClick={() => handleDelete(report.id)}
+                      >
+                        Eliminar
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -965,13 +1016,6 @@ export default function App() {
   return (
     <div className="page">
       <main className="card">
-        <header className="header">
-          <div>
-            <p className="brand">Panel de informes</p>
-          </div>
-          <Navigation isAuthenticated={Boolean(authToken)} onLogout={handleLogout} />
-        </header>
-
         <Routes>
           <Route path="/" element={<ReportFormView />} />
           <Route path="/login" element={<LoginView onLogin={handleLogin} />} />
@@ -981,8 +1025,6 @@ export default function App() {
           />
           <Route path="*" element={<NotFoundView />} />
         </Routes>
-
-        <p className="footer-note">© Congregación El Puente Monte Tabor</p>
       </main>
     </div>
   );

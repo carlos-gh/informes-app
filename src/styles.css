@@ -183,12 +183,45 @@ input:disabled {
   gap: 24px;
 }
 
+.admin-header {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.admin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .admin-toolbar {
   display: flex;
   flex-wrap: wrap;
   gap: 16px;
   align-items: flex-end;
   justify-content: space-between;
+}
+
+.month-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.month-button {
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  background: rgba(15, 23, 42, 0.6);
+  color: #e2e8f0;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.month-button.active {
+  border-color: rgba(99, 102, 241, 0.7);
+  box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.4);
 }
 
 .form-actions {
@@ -247,6 +280,18 @@ input:disabled {
   color: #e2e8f0;
   font-weight: 600;
   cursor: pointer;
+}
+
+.table-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.table-button.danger {
+  border-color: rgba(248, 113, 113, 0.5);
+  background: rgba(248, 113, 113, 0.12);
+  color: #fca5a5;
 }
 
 @media (max-width: 480px) {
@@ -345,6 +390,24 @@ input:disabled {
   text-align: center;
 }
 
+.footer-row {
+  margin-top: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+}
+
+.footer-link {
+  font-size: 0.8rem;
+  color: #64748b;
+  text-decoration: none;
+}
+
+.footer-link:hover {
+  color: #94a3b8;
+}
+
 @media (min-width: 768px) {
   .card {
     padding: 36px;
@@ -358,5 +421,17 @@ input:disabled {
     flex-direction: row;
     align-items: center;
     justify-content: space-between;
+  }
+
+  .admin-header {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .footer-row {
+    flex-direction: row;
+    justify-content: center;
+    gap: 14px;
   }
 }
