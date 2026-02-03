@@ -336,6 +336,18 @@ input:disabled {
   .modal {
     padding: 18px;
   }
+
+  .footer-row {
+    gap: 8px;
+  }
+
+  .footer-note {
+    font-size: 0.75rem;
+  }
+
+  .footer-link {
+    font-size: 0.72rem;
+  }
 }
 
 .required {
@@ -401,19 +413,38 @@ input:disabled {
 .footer-row {
   margin-top: 24px;
   display: flex;
-  flex-direction: column;
-  gap: 6px;
+  flex-direction: row;
+  gap: 12px;
   align-items: center;
+  justify-content: center;
+  flex-wrap: nowrap;
+}
+
+.footer-links {
+  display: flex;
+  flex-direction: row;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: nowrap;
 }
 
 .footer-link {
   font-size: 0.8rem;
   color: #64748b;
   text-decoration: none;
+  white-space: nowrap;
 }
 
 .footer-link:hover {
   color: #94a3b8;
+}
+
+.footer-button {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
 }
 
 .modal-overlay {
@@ -487,8 +518,6 @@ input:disabled {
   }
 
   .footer-row {
-    flex-direction: row;
-    justify-content: center;
-    gap: 14px;
+    gap: 16px;
   }
 }

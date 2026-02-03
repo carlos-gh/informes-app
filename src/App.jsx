@@ -97,7 +97,7 @@ const clearToken = () => {
   localStorage.removeItem(AUTH_TOKEN_KEY);
 };
 
-const ReportFormView = () => {
+const ReportFormView = ({ isAuthenticated, onLogout }) => {
   const currentDate = useMemo(() => new Date(), []);
   const reportDate = useMemo(() => getReportDate(currentDate), [currentDate]);
   const reportMonthName = useMemo(
@@ -366,8 +366,26 @@ const ReportFormView = () => {
       ) : null}
 
       <div className="footer-row">
-        <p className="footer-note">© Congregación El Puente Monte Tabor | <Link className="footer-link" to="/login">Acceso</Link>
-        </p>   
+        <p className="footer-note">© Congregación El Puente Monte Tabor</p>
+        <div className="footer-links">
+          {isAuthenticated ? (
+            <>
+              <Link className="footer-link" to="/admin">
+                Administración
+              </Link>
+              <Link className="footer-link" to="/">
+                Formulario
+              </Link>
+              <button className="footer-link footer-button" type="button" onClick={onLogout}>
+                Cerrar sesión
+              </button>
+            </>
+          ) : (
+            <Link className="footer-link" to="/login">
+              Acceso administrativo
+            </Link>
+          )}
+        </div>
       </div>
     </section>
   );
@@ -1058,7 +1076,15 @@ export default function App() {
     <div className="page">
       <main className={`card ${isAdminRoute ? "card-wide" : ""}`}>
         <Routes>
-          <Route path="/" element={<ReportFormView />} />
+          <Route
+            path="/"
+            element={
+              <ReportFormView
+                isAuthenticated={Boolean(authToken)}
+                onLogout={handleLogout}
+              />
+            }
+          />
           <Route path="/login" element={<LoginView onLogin={handleLogin} />} />
           <Route
             path="/admin"
