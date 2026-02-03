@@ -282,12 +282,9 @@ export default function AdminView({ authToken, onLogout }) {
           </p>
         </div>
         <div className="admin-actions">
-          <Link className="nav-link" to="/">
-            Volver al formulario
-          </Link>
-          <button className="nav-button" type="button" onClick={onLogout}>
-            Cerrar sesión
-          </button>
+        <button className="secondary-button" type="button" onClick={openNewModal}>
+          Nuevo registro
+        </button>
         </div>
       </div>
 
@@ -304,11 +301,7 @@ export default function AdminView({ authToken, onLogout }) {
         ))}
       </div>
 
-      <div className="admin-toolbar">
-        <button className="secondary-button" type="button" onClick={openNewModal}>
-          Nuevo registro
-        </button>
-      </div>
+      <div className="admin-toolbar"></div>
 
       {isModalOpen ? (
         <div className="modal-overlay" role="dialog" aria-modal="true">

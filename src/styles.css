@@ -490,7 +490,7 @@ input:disabled {
   border: none;
   padding: 0;
   cursor: pointer;
-  font: inherit;
+  font-size: .8rem;
 }
 
 .modal-overlay {
