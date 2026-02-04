@@ -14,12 +14,17 @@ const ensureReportsTable = async () => {
       report_month_label TEXT NOT NULL,
       name TEXT NOT NULL,
       participation TEXT NOT NULL,
+      designation TEXT,
       hours TEXT,
       courses TEXT,
       comments TEXT,
       submitted_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
   `;
+
+  await sql`ALTER TABLE reports ADD COLUMN IF NOT EXISTS designation TEXT;`;
+  await sql`ALTER TABLE reports ALTER COLUMN designation SET DEFAULT 'Publicador';`;
+  await sql`UPDATE reports SET designation = 'Publicador' WHERE designation IS NULL OR designation = '';`;
 };
 
 const getReportDateFromKey = (monthKey) => {
@@ -103,6 +108,7 @@ export default async function handler(req, res) {
 
     const name = String(body.name || "").trim();
     const participation = String(body.participation || "").trim();
+    const designation = String(body.designation || "").trim() || "Publicador";
     const hours = String(body.hours || "").trim();
     const courses = String(body.courses || "").trim();
     const comments = String(body.comments || "").trim();
@@ -124,6 +130,7 @@ export default async function handler(req, res) {
         report_month_label = ${reportMonthLabel},
         name = ${name},
         participation = ${participation},
+        designation = ${designation},
         hours = ${hours},
         courses = ${courses},
         comments = ${comments}

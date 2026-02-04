@@ -14,6 +14,7 @@ const buildDefaultAdminForm = (defaultMonthKey) => ({
   reportMonthKey: defaultMonthKey,
   name: "",
   participation: "",
+  designation: "Publicador",
   hours: "",
   courses: "",
   comments: "",
@@ -186,10 +187,11 @@ export default function AdminView({ authToken, onLogout }) {
 
     const columns = [
       { key: "index", label: "No.", width: 30, align: "center" },
-      { key: "name", label: "Nombre", width: 150, align: "left" },
-      { key: "participation", label: "Participó", width: 70, align: "center" },
-      { key: "hours", label: "Horas", width: 50, align: "center" },
-      { key: "courses", label: "Cursos", width: 50, align: "center" },
+      { key: "name", label: "Nombre", width: 130, align: "left" },
+      { key: "participation", label: "Participó", width: 60, align: "center" },
+      { key: "hours", label: "Horas", width: 45, align: "center" },
+      { key: "courses", label: "Cursos", width: 45, align: "center" },
+      { key: "designation", label: "Designación", width: 80, align: "left" },
       { key: "comments", label: "Comentarios", width: 0, align: "left" },
     ];
 
@@ -198,7 +200,7 @@ export default function AdminView({ authToken, onLogout }) {
       0
     );
     const commentsColumn = columns.find((column) => column.key === "comments");
-    commentsColumn.width = Math.max(tableWidth - fixedWidth, 160);
+    commentsColumn.width = Math.max(tableWidth - fixedWidth, 120);
 
     const drawTopHeader = () => {
       document.setFont("helvetica", "normal");
@@ -244,7 +246,8 @@ export default function AdminView({ authToken, onLogout }) {
       let x = marginX;
       document.setFont("helvetica", options.bold ? "bold" : "normal");
       document.setFontSize(9);
-      document.setTextColor(30, 30, 30);
+      const textColor = options.textColor || [30, 30, 30];
+      document.setTextColor(textColor[0], textColor[1], textColor[2]);
 
       if (options.fill) {
         document.setFillColor(230, 230, 230);
@@ -313,6 +316,7 @@ export default function AdminView({ authToken, onLogout }) {
           report.participation === "Sí participé." ? "Sí" : "No",
         hours: report.hours || "-",
         courses: report.courses || "-",
+        designation: report.designation || "Publicador",
         comments: commentText,
       });
     });
@@ -326,9 +330,10 @@ export default function AdminView({ authToken, onLogout }) {
         participation: "",
         hours: totalHours ? String(totalHours) : "-",
         courses: totalCourses ? String(totalCourses) : "-",
+        designation: "",
         comments: "",
       },
-      { fill: true, bold: true }
+      { fill: true, bold: true, textColor: [20, 20, 20] }
     );
 
     document.save(`informes-${monthKey}.pdf`);
@@ -340,6 +345,7 @@ export default function AdminView({ authToken, onLogout }) {
       reportMonthKey: report.reportMonthKey || defaultMonthKey,
       name: report.name || "",
       participation: report.participation || "",
+      designation: report.designation || "Publicador",
       hours: report.hours || "",
       courses: report.courses || "",
       comments: report.comments || "",
@@ -401,6 +407,7 @@ export default function AdminView({ authToken, onLogout }) {
       reportMonthKey: adminForm.reportMonthKey,
       name: adminForm.name.trim(),
       participation: adminForm.participation,
+      designation: adminForm.designation,
       hours: adminForm.hours.trim(),
       courses: adminForm.courses.trim(),
       comments: adminForm.comments.trim(),
@@ -673,6 +680,22 @@ export default function AdminView({ authToken, onLogout }) {
                 />
               </div>
 
+              <div className="field">
+                <label htmlFor="admin-designation">Designación</label>
+                <select
+                  id="admin-designation"
+                  name="admin-designation"
+                  value={adminForm.designation}
+                  onChange={(event) =>
+                    updateAdminForm("designation", event.target.value)
+                  }
+                >
+                  <option value="Publicador">Publicador</option>
+                  <option value="Precursor Auxiliar">Precursor Auxiliar</option>
+                  <option value="Precursor Regular">Precursor Regular</option>
+                </select>
+              </div>
+
               <div className="form-actions">
                 <button
                   className="submit"
@@ -716,23 +739,24 @@ export default function AdminView({ authToken, onLogout }) {
               <th>Cursos</th>
               <th>Comentarios</th>
               <th>Enviado</th>
+              <th>Designación</th>
               <th>Acciones</th>
             </tr>
           </thead>
           <tbody>
             {isLoading ? (
               <tr>
-                <td colSpan={8}>Cargando registros...</td>
+                <td colSpan={9}>Cargando registros...</td>
               </tr>
             ) : null}
             {!isLoading && loadError ? (
               <tr>
-                <td colSpan={8}>{loadError}</td>
+                <td colSpan={9}>{loadError}</td>
               </tr>
             ) : null}
             {!isLoading && !loadError && filteredReports.length === 0 ? (
               <tr>
-                <td colSpan={8}>No hay registros disponibles.</td>
+                <td colSpan={9}>No hay registros disponibles.</td>
               </tr>
             ) : null}
             {!isLoading &&
@@ -746,6 +770,7 @@ export default function AdminView({ authToken, onLogout }) {
                   <td>{report.courses || "-"}</td>
                   <td>{report.comments || "-"}</td>
                   <td>{formatDateTime(report.submittedAt)}</td>
+                  <td>{report.designation || "Publicador"}</td>
                   <td>
                     <div className="table-actions">
                       <button
