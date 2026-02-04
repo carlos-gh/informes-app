@@ -303,13 +303,12 @@ export default function AdminView({ authToken, onLogout }) {
       const textColor = options.textColor || [30, 30, 30];
       document.setTextColor(textColor[0], textColor[1], textColor[2]);
 
-      if (options.fill) {
-        const fillColor = options.fillColor || [235, 235, 235];
-        document.setFillColor(fillColor[0], fillColor[1], fillColor[2]);
-      }
-
       columns.forEach((column) => {
         const value = cells[column.key] ?? "";
+        if (options.fill) {
+          const fillColor = options.fillColor || [235, 235, 235];
+          document.setFillColor(fillColor[0], fillColor[1], fillColor[2]);
+        }
         document.setDrawColor(200, 200, 200);
         document.rect(x, y, column.width, rowHeight, options.fill ? "FD" : "S");
         const textX = column.align === "center" ? x + column.width / 2 : x + 6;
@@ -389,7 +388,7 @@ export default function AdminView({ authToken, onLogout }) {
         designation: "",
         comments: "",
       },
-      { fill: true, fillColor: [235, 235, 235], bold: true, textColor: [20, 20, 20] }
+      { fill: true, fillColor: [245, 245, 245], bold: true, textColor: [20, 20, 20] }
     );
 
     document.save(`informes-${monthKey}.pdf`);
