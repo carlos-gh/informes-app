@@ -389,7 +389,7 @@ export default function AdminView({ authToken, onLogout }) {
         designation: "",
         comments: "",
       },
-      { fill: true, bold: true, textColor: [20, 20, 20] }
+      { fill: true, fillColor: [235, 235, 235], bold: true, textColor: [20, 20, 20] }
     );
 
     document.save(`informes-${monthKey}.pdf`);
