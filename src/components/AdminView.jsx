@@ -176,75 +176,158 @@ export default function AdminView({ authToken, onLogout }) {
 
     const document = new jsPDF({ unit: "pt", format: "a4" });
     const pageWidth = document.internal.pageSize.getWidth();
+    const pageHeight = document.internal.pageSize.getHeight();
     const marginX = 40;
-    let y = 40;
+    const marginY = 32;
+    const tableWidth = pageWidth - marginX * 2;
+    const headerBarHeight = 26;
+    const headerRowHeight = 24;
+    const rowHeight = 22;
 
-    const ensureSpace = (spaceNeeded) => {
-      if (y + spaceNeeded > 760) {
-        document.addPage();
-        y = 40;
-      }
+    const columns = [
+      { key: "index", label: "No.", width: 30, align: "center" },
+      { key: "name", label: "Nombre", width: 140, align: "left" },
+      { key: "participation", label: "Participó", width: 80, align: "center" },
+      { key: "hours", label: "Horas", width: 50, align: "center" },
+      { key: "courses", label: "Cursos", width: 60, align: "center" },
+      { key: "comments", label: "Comentarios", width: 0, align: "left" },
+    ];
+
+    const fixedWidth = columns.reduce(
+      (total, column) => total + (column.width || 0),
+      0
+    );
+    const commentsColumn = columns.find((column) => column.key === "comments");
+    commentsColumn.width = Math.max(tableWidth - fixedWidth, 160);
+
+    const drawTopHeader = () => {
+      document.setFont("helvetica", "normal");
+      document.setFontSize(10);
+      document.setTextColor(40, 40, 40);
+      document.text("Informes Grupo 4", marginX, marginY);
+      const monthWidth = document.getTextWidth(monthLabel);
+      document.text(monthLabel, pageWidth - marginX - monthWidth, marginY);
+
+      document.setFillColor(90, 90, 90);
+      document.rect(marginX, marginY + 20, tableWidth, headerBarHeight, "F");
+      document.setFont("helvetica", "bold");
+      document.setFontSize(12);
+      document.setTextColor(255, 255, 255);
+      const title = `INFORMES GRUPO 4 / MES: ${monthLabel.toUpperCase()}`;
+      document.text(title, pageWidth / 2, marginY + 38, { align: "center" });
     };
 
-    document.setFont("helvetica", "bold");
-    document.setFontSize(16);
-    document.text(`Informe mensual - ${monthLabel}`, marginX, y);
-    y += 20;
+    const drawTableHeader = (y) => {
+      let x = marginX;
+      document.setFont("helvetica", "bold");
+      document.setFontSize(9);
+      document.setTextColor(255, 255, 255);
+      document.setFillColor(224, 114, 0);
 
-    document.setFont("helvetica", "normal");
-    document.setFontSize(10);
-    document.text(`Generado: ${formatDateTime(new Date())}`, marginX, y);
-    y += 20;
+      columns.forEach((column) => {
+        document.rect(x, y, column.width, headerRowHeight, "F");
+        const textX = column.align === "center" ? x + column.width / 2 : x + 6;
+        document.text(column.label, textX, y + 16, {
+          align: column.align === "center" ? "center" : "left",
+        });
+        x += column.width;
+      });
+
+      document.setDrawColor(200, 200, 200);
+      document.setTextColor(40, 40, 40);
+      return y + headerRowHeight;
+    };
+
+    const drawRow = (y, cells, options = {}) => {
+      let x = marginX;
+      document.setFont("helvetica", options.bold ? "bold" : "normal");
+      document.setFontSize(9);
+      document.setTextColor(30, 30, 30);
+
+      if (options.fill) {
+        document.setFillColor(230, 230, 230);
+      }
+
+      columns.forEach((column) => {
+        const value = cells[column.key] ?? "";
+        document.rect(x, y, column.width, rowHeight, options.fill ? "F" : "S");
+        const textX = column.align === "center" ? x + column.width / 2 : x + 6;
+        const text = String(value);
+        document.text(text, textX, y + 14, {
+          align: column.align === "center" ? "center" : "left",
+        });
+        x += column.width;
+      });
+
+      return y + rowHeight;
+    };
+
+    const ensureSpace = (y) => {
+      if (y + rowHeight > pageHeight - marginY) {
+        document.addPage();
+        drawTopHeader();
+        return drawTableHeader(marginY + 52);
+      }
+      return y;
+    };
+
+    drawTopHeader();
+    let y = drawTableHeader(marginY + 52);
 
     if (monthReports.length === 0) {
-      document.text("No hay registros para este mes.", marginX, y);
+      document.setFont("helvetica", "normal");
+      document.setFontSize(10);
+      document.setTextColor(40, 40, 40);
+      document.text("No hay registros para este mes.", marginX, y + 20);
       document.save(`informes-${monthKey}.pdf`);
       return;
     }
 
+    let totalHours = 0;
+    let totalCourses = 0;
+
     monthReports.forEach((report, index) => {
-      ensureSpace(100);
-
-      document.setFont("helvetica", "bold");
-      document.setFontSize(12);
-      document.text(`${index + 1}. ${report.name}`, marginX, y);
-      y += 16;
-
-      document.setFont("helvetica", "normal");
-      document.setFontSize(10);
-
-      const lines = [
-        `Participación: ${report.participation || "-"}`,
-        `Horas: ${report.hours || "-"}`,
-        `Cursos: ${report.courses || "-"}`,
-        `Enviado: ${formatDateTime(report.submittedAt) || "-"}`,
-      ];
-
-      lines.forEach((line) => {
-        ensureSpace(14);
-        document.text(line, marginX, y);
-        y += 14;
-      });
+      y = ensureSpace(y);
+      const hoursValue = Number.parseFloat(report.hours);
+      const coursesValue = Number.parseFloat(report.courses);
+      if (!Number.isNaN(hoursValue)) {
+        totalHours += hoursValue;
+      }
+      if (!Number.isNaN(coursesValue)) {
+        totalCourses += coursesValue;
+      }
 
       const comments = report.comments?.trim() ? report.comments.trim() : "-";
       const commentLines = document.splitTextToSize(
-        `Comentarios: ${comments}`,
-        pageWidth - marginX * 2
+        comments,
+        commentsColumn.width - 12
       );
+      const commentText = commentLines[0] || "-";
 
-      commentLines.forEach((line) => {
-        ensureSpace(14);
-        document.text(line, marginX, y);
-        y += 14;
+      y = drawRow(y, {
+        index: index + 1,
+        name: report.name || "-",
+        participation:
+          report.participation === "Sí participé." ? "Sí" : "No",
+        hours: report.hours || "-",
+        courses: report.courses || "-",
+        comments: commentText,
       });
-
-      y += 6;
-      document.setDrawColor(148, 163, 184);
-      document.setLineWidth(0.5);
-      ensureSpace(12);
-      document.line(marginX, y, pageWidth - marginX, y);
-      y += 12;
     });
+
+    y = ensureSpace(y);
+    drawRow(
+      y,
+      {
+        index: "",
+        name: "Totales:",
+        participation: "",
+        hours: totalHours ? String(totalHours) : "-",
+        courses: totalCourses ? String(totalCourses) : "-",
+        comments: "",
+      },
+      { fill: true, bold: true }
+    );
 
     document.save(`informes-${monthKey}.pdf`);
   };
