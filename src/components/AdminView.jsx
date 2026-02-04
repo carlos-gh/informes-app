@@ -181,15 +181,15 @@ export default function AdminView({ authToken, onLogout }) {
     const marginY = 32;
     const tableWidth = pageWidth - marginX * 2;
     const headerBarHeight = 26;
-    const headerRowHeight = 24;
+    const headerRowHeight = 28;
     const rowHeight = 22;
 
     const columns = [
       { key: "index", label: "No.", width: 30, align: "center" },
-      { key: "name", label: "Nombre", width: 140, align: "left" },
-      { key: "participation", label: "Participó", width: 80, align: "center" },
+      { key: "name", label: "Nombre", width: 150, align: "left" },
+      { key: "participation", label: "Participó", width: 70, align: "center" },
       { key: "hours", label: "Horas", width: 50, align: "center" },
-      { key: "courses", label: "Cursos", width: 60, align: "center" },
+      { key: "courses", label: "Cursos", width: 50, align: "center" },
       { key: "comments", label: "Comentarios", width: 0, align: "left" },
     ];
 
@@ -218,22 +218,24 @@ export default function AdminView({ authToken, onLogout }) {
     };
 
     const drawTableHeader = (y) => {
+      document.setFillColor(224, 114, 0);
+      document.rect(marginX, y, tableWidth, headerRowHeight, "F");
+
       let x = marginX;
       document.setFont("helvetica", "bold");
       document.setFontSize(9);
       document.setTextColor(255, 255, 255);
-      document.setFillColor(224, 114, 0);
 
       columns.forEach((column) => {
-        document.rect(x, y, column.width, headerRowHeight, "F");
         const textX = column.align === "center" ? x + column.width / 2 : x + 6;
-        document.text(column.label, textX, y + 16, {
+        document.text(column.label, textX, y + 18, {
           align: column.align === "center" ? "center" : "left",
         });
+        document.setDrawColor(200, 200, 200);
+        document.rect(x, y, column.width, headerRowHeight, "S");
         x += column.width;
       });
 
-      document.setDrawColor(200, 200, 200);
       document.setTextColor(40, 40, 40);
       return y + headerRowHeight;
     };
@@ -356,7 +358,7 @@ export default function AdminView({ authToken, onLogout }) {
     setSubmitStatus("loading");
 
     try {
-      const response = await fetch(`/api/reports/${reportId}`, {
+      const response = await fetch(`/api/reports?id=${reportId}`, {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${authToken}`,
@@ -405,7 +407,9 @@ export default function AdminView({ authToken, onLogout }) {
     };
 
     try {
-      const response = await fetch(editingId ? `/api/reports/${editingId}` : "/api/reports", {
+      const response = await fetch(
+        editingId ? `/api/reports?id=${editingId}` : "/api/reports",
+        {
         method: editingId ? "PUT" : "POST",
         headers: {
           "Content-Type": "application/json",

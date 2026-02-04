@@ -57,6 +57,23 @@ const getReportMonthLabel = (monthKey) => {
   );
 };
 
+const getReportIdFromRequest = (req) => {
+  if (req.query && req.query.id) {
+    const idValue = Number(req.query.id);
+    return idValue || 0;
+  }
+
+  const url = req.url || "";
+  const match = url.match(/\\/reports\\/(\\d+)/);
+
+  if (match && match[1]) {
+    const idValue = Number(match[1]);
+    return idValue || 0;
+  }
+
+  return 0;
+};
+
 export default async function handler(req, res) {
   if (req.method === "GET") {
     const auth = requireAuth(req);
@@ -146,6 +163,106 @@ export default async function handler(req, res) {
     `;
 
     res.status(200).json({ ok: true, id: result.rows[0]?.id });
+    return;
+  }
+
+  if (req.method === "PUT") {
+    const auth = requireAuth(req);
+    const reportId = getReportIdFromRequest(req);
+    const body = await readJsonBody(req);
+
+    if (!auth) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
+    if (!reportId) {
+      res.status(400).json({ error: "Invalid report id" });
+      return;
+    }
+
+    if (!body) {
+      res.status(400).json({ error: "Invalid payload" });
+      return;
+    }
+
+    const reportMonthKey = String(body.reportMonthKey || "").trim();
+    const reportMonthLabel = getReportMonthLabel(reportMonthKey);
+
+    if (!reportMonthLabel) {
+      res.status(400).json({ error: "Invalid report month" });
+      return;
+    }
+
+    const name = String(body.name || "").trim();
+    const participation = String(body.participation || "").trim();
+    const hours = String(body.hours || "").trim();
+    const courses = String(body.courses || "").trim();
+    const comments = String(body.comments || "").trim();
+
+    if (!name) {
+      res.status(400).json({ error: "Name is required" });
+      return;
+    }
+
+    if (!participation) {
+      res.status(400).json({ error: "Participation is required" });
+      return;
+    }
+
+    await ensureReportsTable();
+
+    const result = await sql`
+      UPDATE reports
+      SET
+        report_month_key = ${reportMonthKey},
+        report_month_label = ${reportMonthLabel},
+        name = ${name},
+        participation = ${participation},
+        hours = ${hours},
+        courses = ${courses},
+        comments = ${comments}
+      WHERE id = ${reportId}
+      RETURNING id;
+    `;
+
+    if (result.rows.length === 0) {
+      res.status(404).json({ error: "Report not found" });
+      return;
+    }
+
+    res.status(200).json({ ok: true, id: result.rows[0].id });
+    return;
+  }
+
+  if (req.method === "DELETE") {
+    const auth = requireAuth(req);
+    const reportId = getReportIdFromRequest(req);
+
+    if (!auth) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
+    if (!reportId) {
+      res.status(400).json({ error: "Invalid report id" });
+      return;
+    }
+
+    await ensureReportsTable();
+
+    const result = await sql`
+      DELETE FROM reports
+      WHERE id = ${reportId}
+      RETURNING id;
+    `;
+
+    if (result.rows.length === 0) {
+      res.status(404).json({ error: "Report not found" });
+      return;
+    }
+
+    res.status(200).json({ ok: true, id: result.rows[0].id });
     return;
   }
 
