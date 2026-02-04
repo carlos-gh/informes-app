@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Route, Routes, useLocation } from "react-router-dom";
 import AdminView from "./components/AdminView.jsx";
+import ConfigView from "./components/ConfigView.jsx";
 import LoginView from "./components/LoginView.jsx";
 import NotFoundView from "./components/NotFoundView.jsx";
 import PageFooter from "./components/PageFooter.jsx";
@@ -11,6 +12,7 @@ export default function App() {
   const [authToken, setAuthToken] = useState("");
   const location = useLocation();
   const isAdminRoute = location.pathname.startsWith("/admin");
+  const isConfigRoute = location.pathname.startsWith("/config");
   const isLoginRoute = location.pathname === "/login";
   const isAuthenticated = Boolean(authToken);
 
@@ -31,13 +33,17 @@ export default function App() {
   return (
     <div className="page">
       <div className="page-main">
-        <main className={`card ${isAdminRoute ? "card-wide" : ""}`}>
+        <main className={`card ${isAdminRoute || isConfigRoute ? "card-wide" : ""}`}>
           <Routes>
             <Route path="/" element={<ReportFormView />} />
             <Route path="/login" element={<LoginView onLogin={handleLogin} />} />
             <Route
               path="/admin"
               element={<AdminView authToken={authToken} onLogout={handleLogout} />}
+            />
+            <Route
+              path="/config"
+              element={<ConfigView authToken={authToken} onLogout={handleLogout} />}
             />
             <Route path="*" element={<NotFoundView />} />
           </Routes>

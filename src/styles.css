@@ -565,6 +565,20 @@ input:disabled {
   font-size: .8rem;
 }
 
+.config {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.config-toolbar {
+  margin-top: 4px;
+}
+
+.config-spacer {
+  height: 40px;
+}
+
 .modal-overlay {
   position: fixed;
   inset: 0;

@@ -9,6 +9,9 @@ export default function PageFooter({ isAuthenticated, isLoginRoute, onLogout }) 
           <Link className="footer-item footer-link" to="/admin">
             Administración
           </Link>
+          <Link className="footer-item footer-link" to="/config">
+            Configuraciones
+          </Link>
           <Link className="footer-item footer-link" to="/">
             Formulario
           </Link>

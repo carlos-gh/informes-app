@@ -27,11 +27,14 @@ export default function AdminView({ authToken, onLogout }) {
   );
 
   const [reports, setReports] = useState([]);
+  const [people, setPeople] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState("");
   const [selectedMonthKey, setSelectedMonthKey] = useState(defaultMonthKey);
   const [editingId, setEditingId] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isPendingOpen, setIsPendingOpen] = useState(false);
+  const [pendingError, setPendingError] = useState("");
   const [submitStatus, setSubmitStatus] = useState("idle");
   const [submitMessage, setSubmitMessage] = useState("");
   const [adminForm, setAdminForm] = useState(buildDefaultAdminForm(defaultMonthKey));
@@ -155,8 +158,38 @@ export default function AdminView({ authToken, onLogout }) {
     }
   };
 
+  const loadPeople = async () => {
+    if (!isAuthenticated) {
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/people", {
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+        },
+      });
+
+      if (response.status === 401) {
+        onLogout();
+        setPendingError("Su sesión expiró. Inicie sesión de nuevo.");
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error("Failed to load people");
+      }
+
+      const data = await response.json();
+      setPeople(data.items || []);
+    } catch (error) {
+      setPendingError("No se pudieron cargar las personas.");
+    }
+  };
+
   useEffect(() => {
     loadReports();
+    loadPeople();
   }, [authToken]);
 
   useEffect(() => {
@@ -168,6 +201,27 @@ export default function AdminView({ authToken, onLogout }) {
   const handleArchiveChange = (event) => {
     const value = event.target.value;
     setSelectedMonthKey(value || defaultMonthKey);
+  };
+
+  const normalizeName = (value) => {
+    return value
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  };
+
+  const getPendingPeople = () => {
+    const reportedNames = new Set(
+      filteredReports.map((report) => normalizeName(report.name || ""))
+    );
+
+    return people.filter((person) => {
+      const normalized = normalizeName(person.name || "");
+      return normalized && !reportedNames.has(normalized);
+    });
   };
 
   const handleDownloadPdf = () => {
@@ -512,6 +566,13 @@ export default function AdminView({ authToken, onLogout }) {
           <button
             className="secondary-button"
             type="button"
+            onClick={() => setIsPendingOpen(true)}
+          >
+            Pendientes
+          </button>
+          <button
+            className="secondary-button"
+            type="button"
             onClick={handleDownloadPdf}
             disabled={activeMonthKey !== defaultMonthKey}
           >
@@ -728,10 +789,78 @@ export default function AdminView({ authToken, onLogout }) {
         </div>
       ) : null}
 
+      {isPendingOpen ? (
+        <div className="modal-overlay" role="dialog" aria-modal="true">
+          <div className="modal">
+            <div className="modal-header">
+              <div>
+                <p className="brand">Pendientes</p>
+                <h2 className="modal-title">Faltan por enviar</h2>
+              </div>
+              <button
+                className="modal-close"
+                type="button"
+                onClick={() => setIsPendingOpen(false)}
+              >
+                Cerrar
+              </button>
+            </div>
+            <div className="modal-body">
+              {pendingError ? (
+                <div className="feedback error" role="status">
+                  {pendingError}
+                </div>
+              ) : null}
+              {!pendingError && people.length === 0 ? (
+                <p className="subtitle">
+                  No hay personas registradas para comparar.
+                </p>
+              ) : null}
+              {!pendingError && people.length > 0 ? (
+                <>
+                  <p className="subtitle">
+                    Mes seleccionado: {activeMonthLabel}
+                  </p>
+                  <div className="table-wrapper">
+                    <table className="table">
+                      <thead>
+                        <tr>
+                          <th>No.</th>
+                          <th>Nombre</th>
+                          <th>Grupo</th>
+                          <th>Designación</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {getPendingPeople().length === 0 ? (
+                          <tr>
+                            <td colSpan={4}>No hay pendientes.</td>
+                          </tr>
+                        ) : (
+                          getPendingPeople().map((person, index) => (
+                            <tr key={person.id}>
+                              <td>{index + 1}</td>
+                              <td>{person.name}</td>
+                              <td>{person.groupNumber ?? "-"}</td>
+                              <td>{person.designation || "Publicador"}</td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       <div className="table-wrapper">
         <table className="table">
           <thead>
             <tr>
+              <th>No.</th>
               <th>Mes</th>
               <th>Nombre</th>
               <th>Participación</th>
@@ -746,23 +875,24 @@ export default function AdminView({ authToken, onLogout }) {
           <tbody>
             {isLoading ? (
               <tr>
-                <td colSpan={9}>Cargando registros...</td>
+                <td colSpan={10}>Cargando registros...</td>
               </tr>
             ) : null}
             {!isLoading && loadError ? (
               <tr>
-                <td colSpan={9}>{loadError}</td>
+                <td colSpan={10}>{loadError}</td>
               </tr>
             ) : null}
             {!isLoading && !loadError && filteredReports.length === 0 ? (
               <tr>
-                <td colSpan={9}>No hay registros disponibles.</td>
+                <td colSpan={10}>No hay registros disponibles.</td>
               </tr>
             ) : null}
             {!isLoading &&
               !loadError &&
-              filteredReports.map((report) => (
+              filteredReports.map((report, index) => (
                 <tr key={report.id}>
+                  <td>{index + 1}</td>
                   <td>{report.reportMonthLabel}</td>
                   <td>{report.name}</td>
                   <td>{report.participation}</td>
