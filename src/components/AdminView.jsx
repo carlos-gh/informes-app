@@ -1,5 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { jsPDF } from "jspdf";
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  LineElement,
+  PointElement,
+  Tooltip,
+  Legend,
+} from "chart.js";
+import { Bar, Line } from "react-chartjs-2";
 import { Link } from "react-router-dom";
 import {
   formatDateTime,
@@ -20,6 +31,16 @@ const buildDefaultAdminForm = (defaultMonthKey) => ({
   comments: "",
 });
 
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  LineElement,
+  PointElement,
+  Tooltip,
+  Legend
+);
+
 export default function AdminView({ authToken, onLogout }) {
   const defaultMonthKey = useMemo(
     () => getReportMonthKey(getReportDate(new Date())),
@@ -34,7 +55,9 @@ export default function AdminView({ authToken, onLogout }) {
   const [editingId, setEditingId] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPendingOpen, setIsPendingOpen] = useState(false);
+  const [isStatsOpen, setIsStatsOpen] = useState(false);
   const [pendingError, setPendingError] = useState("");
+  const [statsRange, setStatsRange] = useState(6);
   const [submitStatus, setSubmitStatus] = useState("idle");
   const [submitMessage, setSubmitMessage] = useState("");
   const [adminForm, setAdminForm] = useState(buildDefaultAdminForm(defaultMonthKey));
@@ -69,6 +92,54 @@ export default function AdminView({ authToken, onLogout }) {
   const filteredReports = useMemo(() => {
     return reports.filter((report) => report.reportMonthKey === activeMonthKey);
   }, [reports, activeMonthKey]);
+
+  const lastMonthKeys = useMemo(() => {
+    const keys = Array.from(
+      new Set(reports.map((report) => report.reportMonthKey).filter(Boolean))
+    ).sort((a, b) => b.localeCompare(a));
+    return keys.slice(0, statsRange).reverse();
+  }, [reports, statsRange]);
+
+  const statsData = useMemo(() => {
+    const base = lastMonthKeys.map((key) => ({
+      key,
+      label: getReportingLabelFromKey(key),
+      hours: 0,
+      courses: 0,
+      auxiliary: 0,
+      regular: 0,
+    }));
+
+    const summary = new Map(base.map((item) => [item.key, item]));
+
+    reports.forEach((report) => {
+      if (!summary.has(report.reportMonthKey)) {
+        return;
+      }
+
+      const entry = summary.get(report.reportMonthKey);
+      const hoursValue = Number.parseFloat(report.hours);
+      const coursesValue = Number.parseFloat(report.courses);
+
+      if (!Number.isNaN(hoursValue)) {
+        entry.hours += hoursValue;
+      }
+
+      if (!Number.isNaN(coursesValue)) {
+        entry.courses += coursesValue;
+      }
+
+      if (report.designation === "Precursor Auxiliar") {
+        entry.auxiliary += 1;
+      }
+
+      if (report.designation === "Precursor Regular") {
+        entry.regular += 1;
+      }
+    });
+
+    return Array.from(summary.values());
+  }, [reports, lastMonthKeys]);
 
   const updateAdminForm = (field, value) => {
     setAdminForm((previous) => ({
@@ -574,6 +645,13 @@ export default function AdminView({ authToken, onLogout }) {
           <button
             className="secondary-button"
             type="button"
+            onClick={() => setIsStatsOpen(true)}
+          >
+            Estadísticas
+          </button>
+          <button
+            className="secondary-button"
+            type="button"
             onClick={handleDownloadPdf}
             disabled={activeMonthKey !== defaultMonthKey}
           >
@@ -852,6 +930,137 @@ export default function AdminView({ authToken, onLogout }) {
                   </div>
                 </>
               ) : null}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {isStatsOpen ? (
+        <div className="modal-overlay" role="dialog" aria-modal="true">
+          <div className="modal modal-wide">
+            <div className="modal-header">
+              <div>
+                <p className="brand">Estadísticas</p>
+                <h2 className="modal-title">Resumen de los últimos meses</h2>
+              </div>
+              <button
+                className="modal-close"
+                type="button"
+                onClick={() => setIsStatsOpen(false)}
+              >
+                Cerrar
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="stats-toolbar">
+                <label htmlFor="stats-range">Meses a comparar</label>
+                <select
+                  id="stats-range"
+                  value={statsRange}
+                  onChange={(event) => setStatsRange(Number(event.target.value))}
+                >
+                  <option value={3}>Últimos 3</option>
+                  <option value={4}>Últimos 4</option>
+                  <option value={5}>Últimos 5</option>
+                  <option value={6}>Últimos 6</option>
+                </select>
+              </div>
+
+              {lastMonthKeys.length === 0 ? (
+                <p className="subtitle">No hay datos suficientes para estadísticas.</p>
+              ) : (
+                <div className="stats-grid">
+                  <div className="stats-card">
+                    <h3>Horas totales</h3>
+                    <Line
+                      data={{
+                        labels: statsData.map((item) => item.label),
+                        datasets: [
+                          {
+                            label: "Horas",
+                            data: statsData.map((item) => item.hours),
+                            borderColor: "#8b5cf6",
+                            backgroundColor: "rgba(139, 92, 246, 0.2)",
+                            tension: 0.35,
+                            fill: true,
+                          },
+                        ],
+                      }}
+                      options={{
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                          legend: { display: false },
+                        },
+                        scales: {
+                          x: { ticks: { color: "#cbd5f5" }, grid: { color: "rgba(148,163,184,0.2)" } },
+                          y: { ticks: { color: "#cbd5f5" }, grid: { color: "rgba(148,163,184,0.2)" } },
+                        },
+                      }}
+                    />
+                  </div>
+                  <div className="stats-card">
+                    <h3>Cursos bíblicos</h3>
+                    <Bar
+                      data={{
+                        labels: statsData.map((item) => item.label),
+                        datasets: [
+                          {
+                            label: "Cursos",
+                            data: statsData.map((item) => item.courses),
+                            backgroundColor: "rgba(56, 189, 248, 0.6)",
+                            borderColor: "#38bdf8",
+                          },
+                        ],
+                      }}
+                      options={{
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                          legend: { display: false },
+                        },
+                        scales: {
+                          x: { ticks: { color: "#cbd5f5" }, grid: { color: "rgba(148,163,184,0.2)" } },
+                          y: { ticks: { color: "#cbd5f5" }, grid: { color: "rgba(148,163,184,0.2)" } },
+                        },
+                      }}
+                    />
+                  </div>
+                  <div className="stats-card">
+                    <h3>Precursores</h3>
+                    <Bar
+                      data={{
+                        labels: statsData.map((item) => item.label),
+                        datasets: [
+                          {
+                            label: "Auxiliar",
+                            data: statsData.map((item) => item.auxiliary),
+                            backgroundColor: "rgba(34, 197, 94, 0.65)",
+                            borderColor: "#22c55e",
+                          },
+                          {
+                            label: "Regular",
+                            data: statsData.map((item) => item.regular),
+                            backgroundColor: "rgba(249, 115, 22, 0.65)",
+                            borderColor: "#f97316",
+                          },
+                        ],
+                      }}
+                      options={{
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                          legend: { labels: { color: "#cbd5f5" } },
+                        },
+                        scales: {
+                          x: { ticks: { color: "#cbd5f5" }, grid: { color: "rgba(148,163,184,0.2)" } },
+                          y: { ticks: { color: "#cbd5f5" }, grid: { color: "rgba(148,163,184,0.2)" } },
+                        },
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

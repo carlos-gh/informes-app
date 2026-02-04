@@ -602,6 +602,61 @@ input:disabled {
   overflow-y: auto;
 }
 
+.modal.modal-wide {
+  max-width: 1040px;
+}
+
+.stats-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.stats-toolbar label {
+  font-size: 0.9rem;
+  color: #cbd5f5;
+}
+
+.stats-toolbar select {
+  min-width: 160px;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.stats-card {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 16px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 240px;
+}
+
+.stats-card h3 {
+  margin: 0;
+  font-size: 1rem;
+  color: #e2e8f0;
+}
+
+.stats-card canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+@media (max-width: 640px) {
+  .modal.modal-wide {
+    max-width: 96vw;
+  }
+}
+
 .modal-header {
   display: flex;
   align-items: center;
