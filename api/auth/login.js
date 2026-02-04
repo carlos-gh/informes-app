@@ -2,6 +2,10 @@ import { createToken, validateCredentials } from "../_lib/auth.js";
 import { readJsonBody } from "../_lib/request.js";
 import { getRequestIp, verifyTurnstileToken } from "../_lib/turnstile.js";
 
+export const config = {
+  runtime: "nodejs",
+};
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     res.status(405).json({ error: "Method not allowed" });
