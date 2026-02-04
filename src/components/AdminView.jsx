@@ -972,92 +972,116 @@ export default function AdminView({ authToken, onLogout }) {
                 <div className="stats-grid">
                   <div className="stats-card">
                     <h3>Horas totales</h3>
-                    <Line
-                      data={{
-                        labels: statsData.map((item) => item.label),
-                        datasets: [
-                          {
-                            label: "Horas",
-                            data: statsData.map((item) => item.hours),
-                            borderColor: "#8b5cf6",
-                            backgroundColor: "rgba(139, 92, 246, 0.2)",
-                            tension: 0.35,
-                            fill: true,
+                    <div className="stats-chart">
+                      <Line
+                        data={{
+                          labels: statsData.map((item) => item.label),
+                          datasets: [
+                            {
+                              label: "Horas",
+                              data: statsData.map((item) => item.hours),
+                              borderColor: "#8b5cf6",
+                              backgroundColor: "rgba(139, 92, 246, 0.2)",
+                              tension: 0.35,
+                              fill: true,
+                            },
+                          ],
+                        }}
+                        options={{
+                          responsive: true,
+                          maintainAspectRatio: false,
+                          plugins: {
+                            legend: { display: false },
                           },
-                        ],
-                      }}
-                      options={{
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                          legend: { display: false },
-                        },
-                        scales: {
-                          x: { ticks: { color: "#cbd5f5" }, grid: { color: "rgba(148,163,184,0.2)" } },
-                          y: { ticks: { color: "#cbd5f5" }, grid: { color: "rgba(148,163,184,0.2)" } },
-                        },
-                      }}
-                    />
+                          scales: {
+                            x: {
+                              ticks: { color: "#cbd5f5" },
+                              grid: { color: "rgba(148,163,184,0.2)" },
+                            },
+                            y: {
+                              ticks: { color: "#cbd5f5" },
+                              grid: { color: "rgba(148,163,184,0.2)" },
+                            },
+                          },
+                        }}
+                      />
+                    </div>
                   </div>
                   <div className="stats-card">
                     <h3>Cursos bíblicos</h3>
-                    <Bar
-                      data={{
-                        labels: statsData.map((item) => item.label),
-                        datasets: [
-                          {
-                            label: "Cursos",
-                            data: statsData.map((item) => item.courses),
-                            backgroundColor: "rgba(56, 189, 248, 0.6)",
-                            borderColor: "#38bdf8",
+                    <div className="stats-chart">
+                      <Bar
+                        data={{
+                          labels: statsData.map((item) => item.label),
+                          datasets: [
+                            {
+                              label: "Cursos",
+                              data: statsData.map((item) => item.courses),
+                              backgroundColor: "rgba(56, 189, 248, 0.6)",
+                              borderColor: "#38bdf8",
+                            },
+                          ],
+                        }}
+                        options={{
+                          responsive: true,
+                          maintainAspectRatio: false,
+                          plugins: {
+                            legend: { display: false },
                           },
-                        ],
-                      }}
-                      options={{
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                          legend: { display: false },
-                        },
-                        scales: {
-                          x: { ticks: { color: "#cbd5f5" }, grid: { color: "rgba(148,163,184,0.2)" } },
-                          y: { ticks: { color: "#cbd5f5" }, grid: { color: "rgba(148,163,184,0.2)" } },
-                        },
-                      }}
-                    />
+                          scales: {
+                            x: {
+                              ticks: { color: "#cbd5f5" },
+                              grid: { color: "rgba(148,163,184,0.2)" },
+                            },
+                            y: {
+                              ticks: { color: "#cbd5f5" },
+                              grid: { color: "rgba(148,163,184,0.2)" },
+                            },
+                          },
+                        }}
+                      />
+                    </div>
                   </div>
                   <div className="stats-card">
                     <h3>Precursores</h3>
-                    <Bar
-                      data={{
-                        labels: statsData.map((item) => item.label),
-                        datasets: [
-                          {
-                            label: "Auxiliar",
-                            data: statsData.map((item) => item.auxiliary),
-                            backgroundColor: "rgba(34, 197, 94, 0.65)",
-                            borderColor: "#22c55e",
+                    <div className="stats-chart">
+                      <Bar
+                        data={{
+                          labels: statsData.map((item) => item.label),
+                          datasets: [
+                            {
+                              label: "Auxiliar",
+                              data: statsData.map((item) => item.auxiliary),
+                              backgroundColor: "rgba(34, 197, 94, 0.65)",
+                              borderColor: "#22c55e",
+                            },
+                            {
+                              label: "Regular",
+                              data: statsData.map((item) => item.regular),
+                              backgroundColor: "rgba(249, 115, 22, 0.65)",
+                              borderColor: "#f97316",
+                            },
+                          ],
+                        }}
+                        options={{
+                          responsive: true,
+                          maintainAspectRatio: false,
+                          plugins: {
+                            legend: { labels: { color: "#cbd5f5" } },
                           },
-                          {
-                            label: "Regular",
-                            data: statsData.map((item) => item.regular),
-                            backgroundColor: "rgba(249, 115, 22, 0.65)",
-                            borderColor: "#f97316",
+                          scales: {
+                            x: {
+                              ticks: { color: "#cbd5f5" },
+                              grid: { color: "rgba(148,163,184,0.2)" },
+                            },
+                            y: {
+                              ticks: { color: "#cbd5f5" },
+                              grid: { color: "rgba(148,163,184,0.2)" },
+                            },
                           },
-                        ],
-                      }}
-                      options={{
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                          legend: { labels: { color: "#cbd5f5" } },
-                        },
-                        scales: {
-                          x: { ticks: { color: "#cbd5f5" }, grid: { color: "rgba(148,163,184,0.2)" } },
-                          y: { ticks: { color: "#cbd5f5" }, grid: { color: "rgba(148,163,184,0.2)" } },
-                        },
-                      }}
-                    />
+                        }}
+                      />
+                    </div>
                   </div>
                 </div>
               )}
