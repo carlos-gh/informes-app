@@ -353,6 +353,9 @@ input:disabled {
   border-radius: 14px;
   border: 1px solid rgba(148, 163, 184, 0.25);
   background: rgba(148, 163, 184, 0.08);
+  scrollbar-width: thin;
+  scrollbar-color: #242d40 #0f172a;
+  scrollbar-gutter: unset;
 }
 
 .table {
