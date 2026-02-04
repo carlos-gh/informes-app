@@ -245,12 +245,6 @@ input:disabled {
   gap: 16px;
 }
 
-.admin-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
 .admin-toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -259,25 +253,76 @@ input:disabled {
   justify-content: space-between;
 }
 
-.month-list {
+.month-toolbar {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 18px;
+  align-items: center;
+  justify-content: space-between;
 }
 
-.month-button {
-  padding: 8px 14px;
+.month-current {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.month-label {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #94a3b8;
+}
+
+.month-chip {
+  padding: 6px 14px;
   border-radius: 999px;
-  border: 1px solid rgba(148, 163, 184, 0.4);
-  background: rgba(15, 23, 42, 0.6);
-  color: #e2e8f0;
+  border: 1px solid rgba(99, 102, 241, 0.45);
+  background: rgba(99, 102, 241, 0.18);
+  color: #f8fafc;
   font-weight: 600;
+}
+
+.month-archive {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 220px;
+}
+
+.month-archive label {
+  font-size: 0.85rem;
+  color: #94a3b8;
+}
+
+.link-button {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #94a3b8;
+  font-size: 0.85rem;
   cursor: pointer;
 }
 
-.month-button.active {
-  border-color: rgba(99, 102, 241, 0.7);
-  box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.4);
+.link-button:hover {
+  color: #cbd5f5;
+}
+
+.admin-toolbar-left {
+  display: flex;
+  align-items: center;
+}
+
+.month-caption {
+  font-size: 0.9rem;
+  color: #94a3b8;
+}
+
+.admin-toolbar-right {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
 }
 
 .form-actions {
@@ -295,6 +340,11 @@ input:disabled {
   color: #e2e8f0;
   font-weight: 600;
   cursor: pointer;
+}
+
+.secondary-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .table-wrapper {
@@ -387,6 +437,23 @@ input:disabled {
 
   .modal {
     padding: 18px;
+  }
+
+  .month-toolbar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .month-archive {
+    width: 100%;
+  }
+
+  .admin-toolbar {
+    align-items: flex-start;
+  }
+
+  .admin-toolbar-right {
+    width: 100%;
   }
 
   .page-footer {

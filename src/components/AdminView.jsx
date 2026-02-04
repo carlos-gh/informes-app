@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { jsPDF } from "jspdf";
 import { Link } from "react-router-dom";
 import {
   formatDateTime,
@@ -19,19 +20,19 @@ const buildDefaultAdminForm = (defaultMonthKey) => ({
 });
 
 export default function AdminView({ authToken, onLogout }) {
-  const [reports, setReports] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [loadError, setLoadError] = useState("");
-  const [selectedMonthKey, setSelectedMonthKey] = useState("");
-  const [editingId, setEditingId] = useState(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [submitStatus, setSubmitStatus] = useState("idle");
-  const [submitMessage, setSubmitMessage] = useState("");
-
   const defaultMonthKey = useMemo(
     () => getReportMonthKey(getReportDate(new Date())),
     []
   );
+
+  const [reports, setReports] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadError, setLoadError] = useState("");
+  const [selectedMonthKey, setSelectedMonthKey] = useState(defaultMonthKey);
+  const [editingId, setEditingId] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [submitStatus, setSubmitStatus] = useState("idle");
+  const [submitMessage, setSubmitMessage] = useState("");
   const [adminForm, setAdminForm] = useState(buildDefaultAdminForm(defaultMonthKey));
   const [formErrors, setFormErrors] = useState({});
 
@@ -47,13 +48,23 @@ export default function AdminView({ authToken, onLogout }) {
       .sort((a, b) => b.localeCompare(a));
   }, [reports, defaultMonthKey]);
 
-  const filteredReports = useMemo(() => {
-    if (!selectedMonthKey) {
-      return reports;
-    }
+  const archiveMonthOptions = useMemo(() => {
+    return monthOptions.filter((monthKey) => monthKey !== defaultMonthKey);
+  }, [monthOptions, defaultMonthKey]);
 
-    return reports.filter((report) => report.reportMonthKey === selectedMonthKey);
-  }, [reports, selectedMonthKey]);
+  const activeMonthKey = selectedMonthKey || defaultMonthKey;
+  const activeMonthLabel = useMemo(
+    () => getReportingLabelFromKey(activeMonthKey),
+    [activeMonthKey]
+  );
+  const currentMonthLabel = useMemo(
+    () => getReportingLabelFromKey(defaultMonthKey),
+    [defaultMonthKey]
+  );
+
+  const filteredReports = useMemo(() => {
+    return reports.filter((report) => report.reportMonthKey === activeMonthKey);
+  }, [reports, activeMonthKey]);
 
   const updateAdminForm = (field, value) => {
     setAdminForm((previous) => ({
@@ -69,14 +80,14 @@ export default function AdminView({ authToken, onLogout }) {
   };
 
   const openNewModal = () => {
-    resetAdminForm(defaultMonthKey);
+    resetAdminForm(activeMonthKey);
     setSubmitMessage("");
     setSubmitStatus("idle");
     setIsModalOpen(true);
   };
 
   const closeModal = () => {
-    resetAdminForm(defaultMonthKey);
+    resetAdminForm(activeMonthKey);
     setSubmitMessage("");
     setSubmitStatus("idle");
     setIsModalOpen(false);
@@ -148,10 +159,95 @@ export default function AdminView({ authToken, onLogout }) {
   }, [authToken]);
 
   useEffect(() => {
-    if (monthOptions.length > 0 && !selectedMonthKey) {
-      setSelectedMonthKey(monthOptions[0]);
+    if (!selectedMonthKey || !monthOptions.includes(selectedMonthKey)) {
+      setSelectedMonthKey(defaultMonthKey);
     }
-  }, [monthOptions, selectedMonthKey]);
+  }, [defaultMonthKey, monthOptions, selectedMonthKey]);
+
+  const handleArchiveChange = (event) => {
+    const value = event.target.value;
+    setSelectedMonthKey(value || defaultMonthKey);
+  };
+
+  const handleDownloadPdf = () => {
+    const monthKey = defaultMonthKey;
+    const monthLabel = currentMonthLabel;
+    const monthReports = reports.filter((report) => report.reportMonthKey === monthKey);
+
+    const document = new jsPDF({ unit: "pt", format: "a4" });
+    const pageWidth = document.internal.pageSize.getWidth();
+    const marginX = 40;
+    let y = 40;
+
+    const ensureSpace = (spaceNeeded) => {
+      if (y + spaceNeeded > 760) {
+        document.addPage();
+        y = 40;
+      }
+    };
+
+    document.setFont("helvetica", "bold");
+    document.setFontSize(16);
+    document.text(`Informe mensual - ${monthLabel}`, marginX, y);
+    y += 20;
+
+    document.setFont("helvetica", "normal");
+    document.setFontSize(10);
+    document.text(`Generado: ${formatDateTime(new Date())}`, marginX, y);
+    y += 20;
+
+    if (monthReports.length === 0) {
+      document.text("No hay registros para este mes.", marginX, y);
+      document.save(`informes-${monthKey}.pdf`);
+      return;
+    }
+
+    monthReports.forEach((report, index) => {
+      ensureSpace(100);
+
+      document.setFont("helvetica", "bold");
+      document.setFontSize(12);
+      document.text(`${index + 1}. ${report.name}`, marginX, y);
+      y += 16;
+
+      document.setFont("helvetica", "normal");
+      document.setFontSize(10);
+
+      const lines = [
+        `Participación: ${report.participation || "-"}`,
+        `Horas: ${report.hours || "-"}`,
+        `Cursos: ${report.courses || "-"}`,
+        `Enviado: ${formatDateTime(report.submittedAt) || "-"}`,
+      ];
+
+      lines.forEach((line) => {
+        ensureSpace(14);
+        document.text(line, marginX, y);
+        y += 14;
+      });
+
+      const comments = report.comments?.trim() ? report.comments.trim() : "-";
+      const commentLines = document.splitTextToSize(
+        `Comentarios: ${comments}`,
+        pageWidth - marginX * 2
+      );
+
+      commentLines.forEach((line) => {
+        ensureSpace(14);
+        document.text(line, marginX, y);
+        y += 14;
+      });
+
+      y += 6;
+      document.setDrawColor(148, 163, 184);
+      document.setLineWidth(0.5);
+      ensureSpace(12);
+      document.line(marginX, y, pageWidth - marginX, y);
+      y += 12;
+    });
+
+    document.save(`informes-${monthKey}.pdf`);
+  };
 
   const handleEdit = (report) => {
     setEditingId(report.id);
@@ -277,31 +373,58 @@ export default function AdminView({ authToken, onLogout }) {
         <div>
           <p className="brand">Panel administrativo</p>
           <h1 className="title">Registros de informes</h1>
-          <p className="subtitle">
-            Revise el historial por mes, agregue registros manuales o edite los existentes.
-          </p>
-        </div>
-        <div className="admin-actions">
-        <button className="secondary-button" type="button" onClick={openNewModal}>
-          Nuevo registro
-        </button>
         </div>
       </div>
 
-      <div className="month-list">
-        {monthOptions.map((monthKey) => (
-          <button
-            key={monthKey}
-            type="button"
-            className={`month-button ${monthKey === selectedMonthKey ? "active" : ""}`}
-            onClick={() => setSelectedMonthKey(monthKey)}
+      <div className="month-toolbar">
+        <div className="month-current">
+          <span className="month-label">Mes actual</span>
+          <span className="month-chip">{currentMonthLabel}</span>
+          {activeMonthKey !== defaultMonthKey ? (
+            <button
+              className="link-button"
+              type="button"
+              onClick={() => setSelectedMonthKey(defaultMonthKey)}
+            >
+              Ver mes actual
+            </button>
+          ) : null}
+        </div>
+        <div className="month-archive">
+          <label htmlFor="archive-month">Archivo</label>
+          <select
+            id="archive-month"
+            value={activeMonthKey === defaultMonthKey ? "" : activeMonthKey}
+            onChange={handleArchiveChange}
           >
-            {getReportingLabelFromKey(monthKey)}
-          </button>
-        ))}
+            <option value="">Seleccionar mes</option>
+            {archiveMonthOptions.map((monthKey) => (
+              <option key={monthKey} value={monthKey}>
+                {getReportingLabelFromKey(monthKey)}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
-      <div className="admin-toolbar"></div>
+      <div className="admin-toolbar">
+        <div className="admin-toolbar-left">
+          <span className="month-caption">Mostrando: {activeMonthLabel}</span>
+        </div>
+        <div className="admin-toolbar-right">
+          <button className="secondary-button" type="button" onClick={openNewModal}>
+            Nuevo registro
+          </button>
+          <button
+            className="secondary-button"
+            type="button"
+            onClick={handleDownloadPdf}
+            disabled={activeMonthKey !== defaultMonthKey}
+          >
+            Descargar PDF del mes
+          </button>
+        </div>
+      </div>
 
       {isModalOpen ? (
         <div className="modal-overlay" role="dialog" aria-modal="true">
