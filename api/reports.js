@@ -57,6 +57,10 @@ const getReportMonthLabel = (monthKey) => {
   );
 };
 
+const isDatabaseConfigured = () => {
+  return Boolean(process.env.POSTGRES_URL || process.env.DATABASE_URL);
+};
+
 const getReportIdFromRequest = (req) => {
   if (req.query && req.query.id) {
     const idValue = Number(req.query.id);
@@ -75,6 +79,11 @@ const getReportIdFromRequest = (req) => {
 };
 
 export default async function handler(req, res) {
+  if (!isDatabaseConfigured()) {
+    res.status(500).json({ error: "Database not configured" });
+    return;
+  }
+
   if (req.method === "GET") {
     const auth = requireAuth(req);
 
@@ -83,24 +92,28 @@ export default async function handler(req, res) {
       return;
     }
 
-    await ensureReportsTable();
+    try {
+      await ensureReportsTable();
 
-    const result = await sql`
-      SELECT
-        id,
-        report_month_key AS "reportMonthKey",
-        report_month_label AS "reportMonthLabel",
-        name,
-        participation,
-        hours,
-        courses,
-        comments,
-        submitted_at AS "submittedAt"
-      FROM reports
-      ORDER BY submitted_at DESC;
-    `;
+      const result = await sql`
+        SELECT
+          id,
+          report_month_key AS "reportMonthKey",
+          report_month_label AS "reportMonthLabel",
+          name,
+          participation,
+          hours,
+          courses,
+          comments,
+          submitted_at AS "submittedAt"
+        FROM reports
+        ORDER BY submitted_at DESC;
+      `;
 
-    res.status(200).json({ items: result.rows });
+      res.status(200).json({ items: result.rows });
+    } catch (error) {
+      res.status(500).json({ error: "Database error" });
+    }
     return;
   }
 
@@ -138,31 +151,35 @@ export default async function handler(req, res) {
       return;
     }
 
-    await ensureReportsTable();
+    try {
+      await ensureReportsTable();
 
-    const result = await sql`
-      INSERT INTO reports (
-        report_month_key,
-        report_month_label,
-        name,
-        participation,
-        hours,
-        courses,
-        comments
-      )
-      VALUES (
-        ${reportMonthKey},
-        ${reportMonthLabel},
-        ${name},
-        ${participation},
-        ${hours},
-        ${courses},
-        ${comments}
-      )
-      RETURNING id;
-    `;
+      const result = await sql`
+        INSERT INTO reports (
+          report_month_key,
+          report_month_label,
+          name,
+          participation,
+          hours,
+          courses,
+          comments
+        )
+        VALUES (
+          ${reportMonthKey},
+          ${reportMonthLabel},
+          ${name},
+          ${participation},
+          ${hours},
+          ${courses},
+          ${comments}
+        )
+        RETURNING id;
+      `;
 
-    res.status(200).json({ ok: true, id: result.rows[0]?.id });
+      res.status(200).json({ ok: true, id: result.rows[0]?.id });
+    } catch (error) {
+      res.status(500).json({ error: "Database error" });
+    }
     return;
   }
 
@@ -210,28 +227,32 @@ export default async function handler(req, res) {
       return;
     }
 
-    await ensureReportsTable();
+    try {
+      await ensureReportsTable();
 
-    const result = await sql`
-      UPDATE reports
-      SET
-        report_month_key = ${reportMonthKey},
-        report_month_label = ${reportMonthLabel},
-        name = ${name},
-        participation = ${participation},
-        hours = ${hours},
-        courses = ${courses},
-        comments = ${comments}
-      WHERE id = ${reportId}
-      RETURNING id;
-    `;
+      const result = await sql`
+        UPDATE reports
+        SET
+          report_month_key = ${reportMonthKey},
+          report_month_label = ${reportMonthLabel},
+          name = ${name},
+          participation = ${participation},
+          hours = ${hours},
+          courses = ${courses},
+          comments = ${comments}
+        WHERE id = ${reportId}
+        RETURNING id;
+      `;
 
-    if (result.rows.length === 0) {
-      res.status(404).json({ error: "Report not found" });
-      return;
+      if (result.rows.length === 0) {
+        res.status(404).json({ error: "Report not found" });
+        return;
+      }
+
+      res.status(200).json({ ok: true, id: result.rows[0].id });
+    } catch (error) {
+      res.status(500).json({ error: "Database error" });
     }
-
-    res.status(200).json({ ok: true, id: result.rows[0].id });
     return;
   }
 
@@ -249,20 +270,24 @@ export default async function handler(req, res) {
       return;
     }
 
-    await ensureReportsTable();
+    try {
+      await ensureReportsTable();
 
-    const result = await sql`
-      DELETE FROM reports
-      WHERE id = ${reportId}
-      RETURNING id;
-    `;
+      const result = await sql`
+        DELETE FROM reports
+        WHERE id = ${reportId}
+        RETURNING id;
+      `;
 
-    if (result.rows.length === 0) {
-      res.status(404).json({ error: "Report not found" });
-      return;
+      if (result.rows.length === 0) {
+        res.status(404).json({ error: "Report not found" });
+        return;
+      }
+
+      res.status(200).json({ ok: true, id: result.rows[0].id });
+    } catch (error) {
+      res.status(500).json({ error: "Database error" });
     }
-
-    res.status(200).json({ ok: true, id: result.rows[0].id });
     return;
   }
 
