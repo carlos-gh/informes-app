@@ -7,13 +7,13 @@ export default function PageFooter({ isAuthenticated, isLoginRoute, onLogout }) 
       {isAuthenticated ? (
         <>
           <Link className="footer-item footer-link" to="/admin">
-            Administración
+            Administrar Informes
           </Link>
           <Link className="footer-item footer-link" to="/config">
-            Configuraciones
+            Configuración
           </Link>
           <Link className="footer-item footer-link" to="/">
-            Formulario
+            Inicio
           </Link>
           <button
             className="footer-item footer-link footer-button"
@@ -27,11 +27,11 @@ export default function PageFooter({ isAuthenticated, isLoginRoute, onLogout }) 
         <>
           {isLoginRoute ? (
             <Link className="footer-item footer-link" to="/">
-              Formulario
+              Inicio
             </Link>
           ) : null}
           <Link className="footer-item footer-link" to="/login">
-            Acceso administrativo
+            Acceso
           </Link>
         </>
       )}
