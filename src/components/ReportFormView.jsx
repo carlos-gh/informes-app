@@ -245,6 +245,7 @@ export default function ReportFormView({ isAuthenticated = false }) {
               onChange={(event) => updateFormData("courses", event.target.value)}
               aria-invalid={Boolean(formErrors.courses)}
               aria-describedby={formErrors.courses ? "courses-error" : undefined}
+              disabled={formData.participation !== "Sí participé."}
             />
             {formErrors.courses ? (
               <span id="courses-error" className="error">
