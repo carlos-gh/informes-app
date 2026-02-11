@@ -525,10 +525,40 @@ input:disabled {
   border: 1px solid rgba(16, 185, 129, 0.35);
 }
 
+.feedback.report-success {
+  animation: success-pop 0.65s ease-out both, success-glow 1.4s ease-out 0.1s;
+}
+
 .feedback.error {
   background: rgba(248, 113, 113, 0.15);
   color: #f87171;
   border: 1px solid rgba(248, 113, 113, 0.35);
+}
+
+@keyframes success-pop {
+  0% {
+    transform: scale(0.96);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.03);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes success-glow {
+  0% {
+    box-shadow: 0 0 0 rgba(16, 185, 129, 0);
+  }
+  70% {
+    box-shadow: 0 10px 26px rgba(16, 185, 129, 0.35);
+  }
+  100% {
+    box-shadow: 0 0 0 rgba(16, 185, 129, 0);
+  }
 }
 
 .page-footer {

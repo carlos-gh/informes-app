@@ -7,7 +7,7 @@ import {
   isNumericValue,
 } from "../utils/reporting.js";
 
-export default function ReportFormView() {
+export default function ReportFormView({ isAuthenticated = false }) {
   const currentDate = useMemo(() => new Date(), []);
   const reportDate = useMemo(() => getReportDate(currentDate), [currentDate]);
   const reportMonthName = useMemo(
@@ -16,6 +16,7 @@ export default function ReportFormView() {
   );
   const reportMonthKey = useMemo(() => getReportMonthKey(reportDate), [reportDate]);
   const isOpen = useMemo(() => isFormWindowOpen(currentDate), [currentDate]);
+  const canSubmit = isOpen || isAuthenticated;
 
   const [formData, setFormData] = useState({
     name: "",
@@ -130,9 +131,14 @@ export default function ReportFormView() {
           Ya puede enviar sus informes predicacion del mes de{" "}
           <span className="month-highlight">{reportMonthName}</span>
         </p>
+      ) : isAuthenticated ? (
+        <p className="subtitle">
+          El periodo para enviar informes ha terminado, pero puede enviar un informe
+          porque ha iniciado sesión.
+        </p>
       ) : (
         <div className="closed">
-          <p className="closed-title">El periodo para enviar informes está cerrado.</p>
+          <p className="closed-title">El periodo para enviar informes ha terminado.</p>
           <p className="closed-message">
             El formulario solo está disponible los primeros dias del mes. Si desea enviar un informe tardío, contacte a
             su superintendente de grupo.
@@ -140,7 +146,7 @@ export default function ReportFormView() {
         </div>
       )}
 
-      {isOpen ? (
+      {canSubmit ? (
         <form className="form" onSubmit={handleSubmit} noValidate>
           <div className="field">
             <label htmlFor="name">
@@ -264,7 +270,9 @@ export default function ReportFormView() {
 
           {submitMessage ? (
             <div
-              className={`feedback ${submitStatus === "success" ? "success" : "error"}`}
+              className={`feedback ${
+                submitStatus === "success" ? "success report-success" : "error"
+              }`}
               role="status"
             >
               {submitMessage}

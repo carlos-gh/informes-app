@@ -35,7 +35,7 @@ export default function App() {
       <div className="page-main">
         <main className={`card ${isAdminRoute || isConfigRoute ? "card-wide" : ""}`}>
           <Routes>
-            <Route path="/" element={<ReportFormView />} />
+            <Route path="/" element={<ReportFormView isAuthenticated={isAuthenticated} />} />
             <Route path="/login" element={<LoginView onLogin={handleLogin} />} />
             <Route
               path="/admin"
