@@ -7,6 +7,15 @@ const buildDefaultPersonForm = () => ({
   designation: "Publicador",
 });
 
+const CONFIG_TABLE_SKELETON_ROWS = Array.from({ length: 5 }, (_, index) => index);
+const CONFIG_TABLE_SKELETON_COLUMNS = [
+  "skeleton-xs",
+  "skeleton-lg",
+  "skeleton-sm",
+  "skeleton-sm",
+  "skeleton-md",
+];
+
 export default function ConfigView({ authToken, onLogout }) {
   const [people, setPeople] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -250,11 +259,17 @@ export default function ConfigView({ authToken, onLogout }) {
             </tr>
           </thead>
           <tbody>
-            {isLoading ? (
-              <tr>
-                <td colSpan={5}>Cargando personas...</td>
-              </tr>
-            ) : null}
+            {isLoading
+              ? CONFIG_TABLE_SKELETON_ROWS.map((rowIndex) => (
+                  <tr key={`config-skeleton-${rowIndex}`} className="table-skeleton">
+                    {CONFIG_TABLE_SKELETON_COLUMNS.map((size, cellIndex) => (
+                      <td key={`config-skeleton-cell-${rowIndex}-${cellIndex}`}>
+                        <span className={`skeleton-line ${size}`} />
+                      </td>
+                    ))}
+                  </tr>
+                ))
+              : null}
             {!isLoading && loadError ? (
               <tr>
                 <td colSpan={5}>{loadError}</td>

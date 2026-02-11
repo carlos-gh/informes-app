@@ -41,6 +41,20 @@ ChartJS.register(
   Legend
 );
 
+const ADMIN_TABLE_SKELETON_ROWS = Array.from({ length: 6 }, (_, index) => index);
+const ADMIN_TABLE_SKELETON_COLUMNS = [
+  "skeleton-xs",
+  "skeleton-sm",
+  "skeleton-lg",
+  "skeleton-sm",
+  "skeleton-xs",
+  "skeleton-xs",
+  "skeleton-xl",
+  "skeleton-md",
+  "skeleton-sm",
+  "skeleton-md",
+];
+
 export default function AdminView({ authToken, onLogout }) {
   const defaultMonthKey = useMemo(
     () => getReportMonthKey(getReportDate(new Date())),
@@ -1107,11 +1121,17 @@ export default function AdminView({ authToken, onLogout }) {
             </tr>
           </thead>
           <tbody>
-            {isLoading ? (
-              <tr>
-                <td colSpan={10}>Cargando registros...</td>
-              </tr>
-            ) : null}
+            {isLoading
+              ? ADMIN_TABLE_SKELETON_ROWS.map((rowIndex) => (
+                  <tr key={`admin-skeleton-${rowIndex}`} className="table-skeleton">
+                    {ADMIN_TABLE_SKELETON_COLUMNS.map((size, cellIndex) => (
+                      <td key={`admin-skeleton-cell-${rowIndex}-${cellIndex}`}>
+                        <span className={`skeleton-line ${size}`} />
+                      </td>
+                    ))}
+                  </tr>
+                ))
+              : null}
             {!isLoading && loadError ? (
               <tr>
                 <td colSpan={10}>{loadError}</td>

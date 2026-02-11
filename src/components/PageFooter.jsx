@@ -6,14 +6,14 @@ export default function PageFooter({ isAuthenticated, isLoginRoute, onLogout }) 
       <span className="footer-item">© Congregación El Puente Monte Tabor</span>
       {isAuthenticated ? (
         <>
+          <Link className="footer-item footer-link" to="/">
+            Inicio
+          </Link>
           <Link className="footer-item footer-link" to="/admin">
             Administrar Informes
           </Link>
           <Link className="footer-item footer-link" to="/config">
             Configuración
-          </Link>
-          <Link className="footer-item footer-link" to="/">
-            Inicio
           </Link>
           <button
             className="footer-item footer-link footer-button"
