@@ -134,8 +134,7 @@ export default function ReportFormView() {
         <div className="closed">
           <p className="closed-title">El periodo para enviar informes está cerrado.</p>
           <p className="closed-message">
-            El formulario solo está disponible los primeros dias del mes. Regrese el
-            proximo mes para enviar su informe. Si desea enviar un informe, contacte a
+            El formulario solo está disponible los primeros dias del mes. Si desea enviar un informe tardío, contacte a
             su superintendente de grupo.
           </p>
         </div>
