@@ -631,7 +631,7 @@ export default function AdminView({ authToken, onLogout }) {
             value={activeMonthKey === defaultMonthKey ? "" : activeMonthKey}
             onChange={handleArchiveChange}
           >
-            <option value="">Seleccionar mes</option>
+            <option value="">{currentMonthLabel}</option>
             {archiveMonthOptions.map((monthKey) => (
               <option key={monthKey} value={monthKey}>
                 {getReportingLabelFromKey(monthKey)}
@@ -669,7 +669,7 @@ export default function AdminView({ authToken, onLogout }) {
             onClick={handleDownloadPdf}
             disabled={activeMonthKey !== defaultMonthKey}
           >
-            Descargar PDF del mes
+            Generar PDF
           </button>
         </div>
       </div>

@@ -520,7 +520,7 @@ input:disabled {
   }
 
   .page-footer {
-    flex-wrap: wrap;
+    flex-direction: column;
     row-gap: 6px;
   }
 
@@ -529,7 +529,8 @@ input:disabled {
   }
 
   .footer-item + .footer-item::before {
-    margin: 0 6px;
+    content: none;
+    margin: 0;
   }
 }
 
