@@ -399,7 +399,8 @@ export default function AdminView({ authToken, onLogout }) {
 
   const handleArchiveChange = (event) => {
     const value = event.target.value;
-    selectMonth(value || defaultMonthKey);
+
+    selectMonth(value || defaultMonthKey, { openDetail: !isDetailView });
   };
 
   const handleBackToOverview = () => {
@@ -854,61 +855,23 @@ export default function AdminView({ authToken, onLogout }) {
         </div>
       </div>
 
-      <div className="month-toolbar">
-        <div className="month-current">
-          <span className="month-label">Mes actual</span>
-          <span className="month-chip">{currentMonthLabel}</span>
-          {activeMonthKey !== defaultMonthKey ? (
-            <button
-              className="link-button"
-              type="button"
-              onClick={() => selectMonth(defaultMonthKey)}
+      {isDetailView ? (
+        <div className="month-toolbar">
+          <div className="month-archive">
+            <label htmlFor="archive-month">Archivo</label>
+            <select
+              id="archive-month"
+              value={activeMonthKey === defaultMonthKey ? "" : activeMonthKey}
+              onChange={handleArchiveChange}
             >
-              Ver mes actual
-            </button>
-          ) : null}
-        </div>
-        <div className="month-archive">
-          <label htmlFor="archive-month">Archivo</label>
-          <select
-            id="archive-month"
-            value={activeMonthKey === defaultMonthKey ? "" : activeMonthKey}
-            onChange={handleArchiveChange}
-          >
-            <option value="">{currentMonthLabel}</option>
-            {archiveMonthOptions.map((monthKey) => (
-              <option key={monthKey} value={monthKey}>
-                {getReportingLabelFromKey(monthKey)}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      <div className="admin-toolbar">
-        <div className="admin-toolbar-left">
-          <span className="month-caption">
-            Mostrando: {activeMonthLabel}
-            {isActiveMonthClosed ? " (completado)" : ""}
-          </span>
-        </div>
-        {!isDetailView ? (
-          <div className="admin-toolbar-right">
-            <button
-              className="secondary-button"
-              type="button"
-              onClick={() => selectMonth(activeMonthKey, { openDetail: true })}
-            >
-              Ver detalle del mes
-            </button>
+              <option value="">{currentMonthLabel}</option>
+              {archiveMonthOptions.map((monthKey) => (
+                <option key={monthKey} value={monthKey}>
+                  {getReportingLabelFromKey(monthKey)}
+                </option>
+              ))}
+            </select>
           </div>
-        ) : null}
-      </div>
-
-      {!isDetailView && isActiveMonthClosed ? (
-        <div className="preview-notice">
-          Este periodo está completado. Los registros se muestran en modo solo vista
-          previa.
         </div>
       ) : null}
 
