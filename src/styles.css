@@ -391,6 +391,15 @@ input:disabled {
   background: rgba(99, 102, 241, 0.15);
 }
 
+.closed-period-item-skeleton {
+  cursor: default;
+  pointer-events: none;
+}
+
+.closed-period-item-skeleton .skeleton-line {
+  height: 14px;
+}
+
 .closed-period-month {
   font-weight: 600;
 }

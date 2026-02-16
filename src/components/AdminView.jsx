@@ -42,6 +42,8 @@ ChartJS.register(
   Legend
 );
 
+const CLOSED_PERIODS_SKELETON_ITEMS = Array.from({ length: 3 }, (_, index) => index);
+
 export default function AdminView({ authToken, onLogout }) {
   const navigate = useNavigate();
   const { monthKey: routeMonthKey = "" } = useParams();
@@ -845,7 +847,7 @@ export default function AdminView({ authToken, onLogout }) {
         </div>
       </div>
 
-      {!isDetailView && closedPeriodSummaries.length > 0 ? (
+      {!isDetailView && (isLoading || closedPeriodSummaries.length > 0) ? (
         <section className="closed-periods">
           <div className="closed-periods-header">
             <h2 className="closed-periods-title">Meses completados</h2>
@@ -854,27 +856,38 @@ export default function AdminView({ authToken, onLogout }) {
             </p>
           </div>
           <div className="closed-periods-list">
-            {closedPeriodSummaries.map((period) => (
-              <button
-                key={period.reportMonthKey}
-                className={`closed-period-item ${
-                  activeMonthKey === period.reportMonthKey ? "active" : ""
-                }`}
-                type="button"
-                onClick={() =>
-                  selectMonth(period.reportMonthKey, { openDetail: true })
-                }
-              >
-                <span className="closed-period-month">{period.reportMonthLabel}</span>
-                <span className="closed-period-meta">
-                  Informes: {period.totalReports} · Horas: {period.totalHours} · Cursos:{" "}
-                  {period.totalCourses}
-                </span>
-                <span className="closed-period-meta">
-                  Completado: {formatDateTime(period.closedAt)}
-                </span>
-              </button>
-            ))}
+            {isLoading
+              ? CLOSED_PERIODS_SKELETON_ITEMS.map((index) => (
+                  <div
+                    key={`closed-period-skeleton-${index}`}
+                    className="closed-period-item closed-period-item-skeleton"
+                  >
+                    <span className="skeleton-line skeleton-lg" />
+                    <span className="skeleton-line skeleton-xl" />
+                    <span className="skeleton-line skeleton-md" />
+                  </div>
+                ))
+              : closedPeriodSummaries.map((period) => (
+                  <button
+                    key={period.reportMonthKey}
+                    className={`closed-period-item ${
+                      activeMonthKey === period.reportMonthKey ? "active" : ""
+                    }`}
+                    type="button"
+                    onClick={() =>
+                      selectMonth(period.reportMonthKey, { openDetail: true })
+                    }
+                  >
+                    <span className="closed-period-month">{period.reportMonthLabel}</span>
+                    <span className="closed-period-meta">
+                      Informes: {period.totalReports} · Horas: {period.totalHours} · Cursos:{" "}
+                      {period.totalCourses}
+                    </span>
+                    <span className="closed-period-meta">
+                      Completado: {formatDateTime(period.closedAt)}
+                    </span>
+                  </button>
+                ))}
           </div>
         </section>
       ) : null}
