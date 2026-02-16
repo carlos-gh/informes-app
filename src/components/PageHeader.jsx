@@ -16,7 +16,7 @@ export default function PageHeader({ isAuthenticated, isLoginRoute, onLogout }) 
               Configuración
             </Link>
             <button
-              className="header-item header-link header-button"
+              className="header-item header-button"
               type="button"
               onClick={onLogout}
             >
