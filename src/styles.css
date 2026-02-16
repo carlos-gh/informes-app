@@ -519,6 +519,15 @@ input:disabled {
     width: 100%;
   }
 
+  .config-section-head {
+    align-items: flex-start;
+  }
+
+  .config-section-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
   .page-footer {
     flex-direction: column;
     row-gap: 6px;
@@ -671,6 +680,24 @@ input:disabled {
   background: rgba(148, 163, 184, 0.08);
 }
 
+.config-people {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  background: rgba(148, 163, 184, 0.08);
+}
+
+.config-section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .config-section-title {
   margin: 0 0 8px;
   font-size: 1rem;
@@ -684,6 +711,22 @@ input:disabled {
 
 .config-theme .field {
   max-width: 320px;
+}
+
+.config-section-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.config-total {
+  font-size: 0.92rem;
+  color: #94a3b8;
+}
+
+.config-people .table-wrapper {
+  margin-top: 2px;
 }
 
 .config-spacer {
@@ -891,7 +934,8 @@ input:disabled {
 }
 
 :root[data-theme="light"] .table-wrapper,
-:root[data-theme="light"] .config-theme {
+:root[data-theme="light"] .config-theme,
+:root[data-theme="light"] .config-people {
   background: rgba(148, 163, 184, 0.1);
   border-color: rgba(148, 163, 184, 0.4);
 }
@@ -932,5 +976,9 @@ input:disabled {
 :root[data-theme="light"] .footer-item,
 :root[data-theme="light"] .footer-item + .footer-item::before,
 :root[data-theme="light"] .footer-link {
+  color: #475569;
+}
+
+:root[data-theme="light"] .config-total {
   color: #475569;
 }

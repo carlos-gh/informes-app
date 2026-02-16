@@ -244,9 +244,9 @@ export default function ConfigView({
       <div className="admin-header">
         <div>
           <p className="brand">Configuraciones</p>
-          <h1 className="title">Personas registradas</h1>
+          <h1 className="title">Configuraciones</h1>
           <p className="subtitle">
-            Administre la lista de personas para comparar pendientes de informes.
+            Administre las preferencias de la aplicación y la lista de personas.
           </p>
         </div>
       </div>
@@ -270,81 +270,87 @@ export default function ConfigView({
         </div>
       </section>
 
-      <div className="admin-toolbar config-toolbar">
-        <div className="admin-toolbar-left">
-          <span className="month-caption">Total: {people.length}</span>
+      <section className="config-people">
+        <div className="config-section-head">
+          <div>
+            <h2 className="config-section-title">Personas registradas</h2>
+            <p className="config-section-description">
+              Administre la lista de personas para comparar pendientes de informes.
+            </p>
+          </div>
+          <div className="config-section-actions">
+            <span className="config-total">Total: {people.length}</span>
+            <button className="secondary-button" type="button" onClick={openNewModal}>
+              Agregar persona
+            </button>
+          </div>
         </div>
-        <div className="admin-toolbar-right">
-          <button className="secondary-button" type="button" onClick={openNewModal}>
-            Agregar persona
-          </button>
-        </div>
-      </div>
 
-      <div className="table-wrapper">
-        <table className="table">
-          <thead>
-            <tr>
-              <th>No.</th>
-              <th>Nombre</th>
-              <th>Grupo</th>
-              <th>Designación</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {isLoading
-              ? CONFIG_TABLE_SKELETON_ROWS.map((rowIndex) => (
-                  <tr key={`config-skeleton-${rowIndex}`} className="table-skeleton">
-                    {CONFIG_TABLE_SKELETON_COLUMNS.map((size, cellIndex) => (
-                      <td key={`config-skeleton-cell-${rowIndex}-${cellIndex}`}>
-                        <span className={`skeleton-line ${size}`} />
-                      </td>
-                    ))}
-                  </tr>
-                ))
-              : null}
-            {!isLoading && loadError ? (
+        <div className="table-wrapper">
+          <table className="table">
+            <thead>
               <tr>
-                <td colSpan={5}>{loadError}</td>
+                <th>No.</th>
+                <th>Nombre</th>
+                <th>Grupo</th>
+                <th>Designación</th>
+                <th>Acciones</th>
               </tr>
-            ) : null}
-            {!isLoading && !loadError && people.length === 0 ? (
-              <tr>
-                <td colSpan={5}>No hay personas registradas.</td>
-              </tr>
-            ) : null}
-            {!isLoading &&
-              !loadError &&
-              people.map((person, index) => (
-                <tr key={person.id}>
-                  <td>{index + 1}</td>
-                  <td>{person.name}</td>
-                  <td>{person.groupNumber ?? "-"}</td>
-                  <td>{person.designation || "Publicador"}</td>
-                  <td>
-                    <div className="table-actions">
-                      <button
-                        className="table-button"
-                        type="button"
-                        onClick={() => handleEdit(person)}
-                      >
-                        Editar
-                      </button>
-                      <button
-                        className="table-button danger"
-                        type="button"
-                        onClick={() => handleDelete(person.id)}
-                      >
-                        Eliminar
-                      </button>
-                    </div>
-                  </td>
+            </thead>
+            <tbody>
+              {isLoading
+                ? CONFIG_TABLE_SKELETON_ROWS.map((rowIndex) => (
+                    <tr key={`config-skeleton-${rowIndex}`} className="table-skeleton">
+                      {CONFIG_TABLE_SKELETON_COLUMNS.map((size, cellIndex) => (
+                        <td key={`config-skeleton-cell-${rowIndex}-${cellIndex}`}>
+                          <span className={`skeleton-line ${size}`} />
+                        </td>
+                      ))}
+                    </tr>
+                  ))
+                : null}
+              {!isLoading && loadError ? (
+                <tr>
+                  <td colSpan={5}>{loadError}</td>
                 </tr>
-              ))}
-          </tbody>
-        </table>
-      </div>
+              ) : null}
+              {!isLoading && !loadError && people.length === 0 ? (
+                <tr>
+                  <td colSpan={5}>No hay personas registradas.</td>
+                </tr>
+              ) : null}
+              {!isLoading &&
+                !loadError &&
+                people.map((person, index) => (
+                  <tr key={person.id}>
+                    <td>{index + 1}</td>
+                    <td>{person.name}</td>
+                    <td>{person.groupNumber ?? "-"}</td>
+                    <td>{person.designation || "Publicador"}</td>
+                    <td>
+                      <div className="table-actions">
+                        <button
+                          className="table-button"
+                          type="button"
+                          onClick={() => handleEdit(person)}
+                        >
+                          Editar
+                        </button>
+                        <button
+                          className="table-button danger"
+                          type="button"
+                          onClick={() => handleDelete(person.id)}
+                        >
+                          Eliminar
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
 
       <div className="config-spacer" />
 
