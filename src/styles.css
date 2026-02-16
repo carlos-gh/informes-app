@@ -32,10 +32,13 @@ body {
   margin: 0 auto;
   display: flex;
   justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
   position: relative;
 }
 
 .header-menu-toggle {
+  display: none;
   padding: 8px 14px;
   border-radius: 8px;
   border: 1px solid rgba(148, 163, 184, 0.35);
@@ -54,29 +57,10 @@ body {
 }
 
 .header-nav {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  width: min(320px, calc(100vw - 32px));
-  padding: 10px;
-  border-radius: 12px;
-  border: 1px solid rgba(148, 163, 184, 0.24);
-  background: rgba(15, 23, 42, 0.96);
-  box-shadow: 0 16px 34px rgba(2, 6, 23, 0.5);
   display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 4px;
-  transform: translateX(112%);
-  opacity: 0;
-  pointer-events: none;
-  transition: transform 0.24s ease, opacity 0.24s ease;
-}
-
-.header-nav.open {
-  transform: translateX(0);
-  opacity: 1;
-  pointer-events: auto;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
 }
 
 .header-item {
@@ -87,22 +71,22 @@ body {
   display: inline-flex;
   align-items: center;
   padding: 8px 12px;
-  width: 100%;
-  justify-content: flex-start;
+  width: auto;
+  justify-content: center;
   border-radius: 4px;
 }
 
 .header-link {
   color: #e2e8f0;
   border: none;
-  border-left: 2px solid transparent;
+  border-bottom: 2px solid transparent;
   background: transparent;
   border-radius: 0;
 }
 
 .header-link:hover {
-  border-left-color: rgba(99, 102, 241, 0.7);
-  background: rgba(99, 102, 241, 0.08);
+  border-bottom-color: rgba(99, 102, 241, 0.7);
+  background: transparent;
 }
 
 .header-button {
@@ -113,12 +97,79 @@ body {
   cursor: pointer;
   font-family: inherit;
   transition: background 0.2s ease, border-color 0.2s ease;
-  margin-top: 4px;
+  margin-top: 0;
 }
 
 .header-button:hover {
   background: rgba(248, 113, 113, 0.2);
   border-color: rgba(248, 113, 113, 0.75);
+}
+
+@media (max-width: 768px) {
+  .header-menu-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .header-nav {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    width: min(320px, calc(100vw - 32px));
+    padding: 10px;
+    border-radius: 12px;
+    border: 1px solid rgba(148, 163, 184, 0.24);
+    background: rgba(15, 23, 42, 0.96);
+    box-shadow: 0 16px 34px rgba(2, 6, 23, 0.5);
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+    transform: translateX(112%);
+    opacity: 0;
+    pointer-events: none;
+    transition: transform 0.24s ease, opacity 0.24s ease;
+  }
+
+  .header-nav.open {
+    transform: translateX(0);
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .header-item {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .header-link {
+    border-bottom: none;
+    border-left: 2px solid transparent;
+  }
+
+  .header-link:hover {
+    border-left-color: rgba(99, 102, 241, 0.7);
+    background: rgba(99, 102, 241, 0.08);
+  }
+
+  .header-button {
+    margin-top: 4px;
+  }
+
+  :root[data-theme="light"] .header-nav {
+    border-color: rgba(148, 163, 184, 0.45);
+    background: rgba(255, 255, 255, 0.98);
+    box-shadow: 0 14px 34px rgba(15, 23, 42, 0.16);
+  }
+
+  :root[data-theme="light"] .header-link {
+    border-left-color: transparent;
+  }
+
+  :root[data-theme="light"] .header-link:hover {
+    border-left-color: rgba(99, 102, 241, 0.7);
+    background: rgba(99, 102, 241, 0.12);
+  }
 }
 
 .page-main {
@@ -1130,19 +1181,19 @@ input:disabled {
 }
 
 :root[data-theme="light"] .header-nav {
-  border-color: rgba(148, 163, 184, 0.45);
-  background: rgba(255, 255, 255, 0.98);
-  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.16);
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
 }
 
 :root[data-theme="light"] .header-link {
   color: #1e293b;
-  border-left-color: transparent;
+  border-bottom-color: transparent;
 }
 
 :root[data-theme="light"] .header-link:hover {
-  border-left-color: rgba(99, 102, 241, 0.7);
-  background: rgba(99, 102, 241, 0.12);
+  border-bottom-color: rgba(99, 102, 241, 0.7);
+  background: transparent;
 }
 
 :root[data-theme="light"] .header-button {
