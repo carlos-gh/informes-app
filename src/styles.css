@@ -400,6 +400,21 @@ input:disabled {
   color: #94a3b8;
 }
 
+.admin-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.admin-detail-toolbar {
+  margin-top: 4px;
+}
+
+.admin-detail-left {
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
 .form-actions {
   display: flex;
   flex-wrap: wrap;

@@ -11,7 +11,8 @@ import {
   Legend,
 } from "chart.js";
 import { Bar, Line } from "react-chartjs-2";
-import { Link } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import AdminMonthDetailView from "./AdminMonthDetailView.jsx";
 import {
   formatDateTime,
   getReportDate,
@@ -41,21 +42,10 @@ ChartJS.register(
   Legend
 );
 
-const ADMIN_TABLE_SKELETON_ROWS = Array.from({ length: 6 }, (_, index) => index);
-const ADMIN_TABLE_SKELETON_COLUMNS = [
-  "skeleton-xs",
-  "skeleton-sm",
-  "skeleton-lg",
-  "skeleton-sm",
-  "skeleton-xs",
-  "skeleton-xs",
-  "skeleton-xl",
-  "skeleton-md",
-  "skeleton-sm",
-  "skeleton-md",
-];
-
 export default function AdminView({ authToken, onLogout }) {
+  const navigate = useNavigate();
+  const { monthKey: routeMonthKey = "" } = useParams();
+  const isDetailView = Boolean(routeMonthKey);
   const defaultMonthKey = useMemo(
     () => getReportMonthKey(getReportDate(new Date())),
     []
@@ -380,9 +370,40 @@ export default function AdminView({ authToken, onLogout }) {
     }
   }, [defaultMonthKey, availableMonthKeys, selectedMonthKey]);
 
+  useEffect(() => {
+    if (!isDetailView) {
+      return;
+    }
+
+    if (availableMonthKeys.includes(routeMonthKey)) {
+      setSelectedMonthKey(routeMonthKey);
+      return;
+    }
+
+    navigate("/admin", { replace: true });
+  }, [availableMonthKeys, isDetailView, navigate, routeMonthKey]);
+
+  const selectMonth = (monthKey, options = {}) => {
+    const nextMonthKey = monthKey || defaultMonthKey;
+    setSelectedMonthKey(nextMonthKey);
+
+    if (options.openDetail) {
+      navigate(`/admin/${nextMonthKey}`);
+      return;
+    }
+
+    if (isDetailView) {
+      navigate(`/admin/${nextMonthKey}`);
+    }
+  };
+
   const handleArchiveChange = (event) => {
     const value = event.target.value;
-    setSelectedMonthKey(value || defaultMonthKey);
+    selectMonth(value || defaultMonthKey);
+  };
+
+  const handleBackToOverview = () => {
+    navigate("/admin");
   };
 
   const handleClosePeriod = async () => {
@@ -841,7 +862,7 @@ export default function AdminView({ authToken, onLogout }) {
             <button
               className="link-button"
               type="button"
-              onClick={() => setSelectedMonthKey(defaultMonthKey)}
+              onClick={() => selectMonth(defaultMonthKey)}
             >
               Ver mes actual
             </button>
@@ -906,6 +927,13 @@ export default function AdminView({ authToken, onLogout }) {
           <button
             className="secondary-button"
             type="button"
+            onClick={() => selectMonth(activeMonthKey, { openDetail: true })}
+          >
+            Ver detalle del mes
+          </button>
+          <button
+            className="secondary-button"
+            type="button"
             onClick={handleDownloadPdf}
             disabled={activeMonthKey !== defaultMonthKey}
           >
@@ -914,14 +942,14 @@ export default function AdminView({ authToken, onLogout }) {
         </div>
       </div>
 
-      {isActiveMonthClosed ? (
+      {!isDetailView && isActiveMonthClosed ? (
         <div className="preview-notice">
           Este periodo está cerrado. Los registros se muestran en modo solo vista
           previa.
         </div>
       ) : null}
 
-      {closedPeriodSummaries.length > 0 ? (
+      {!isDetailView && closedPeriodSummaries.length > 0 ? (
         <section className="closed-periods">
           <div className="closed-periods-header">
             <h2 className="closed-periods-title">Meses cerrados</h2>
@@ -937,7 +965,9 @@ export default function AdminView({ authToken, onLogout }) {
                   activeMonthKey === period.reportMonthKey ? "active" : ""
                 }`}
                 type="button"
-                onClick={() => setSelectedMonthKey(period.reportMonthKey)}
+                onClick={() =>
+                  selectMonth(period.reportMonthKey, { openDetail: true })
+                }
               >
                 <span className="closed-period-month">{period.reportMonthLabel}</span>
                 <span className="closed-period-meta">
@@ -1383,84 +1413,20 @@ export default function AdminView({ authToken, onLogout }) {
         </div>
       ) : null}
 
-      <div id="month-details" className="table-wrapper">
-        <table className="table">
-          <thead>
-            <tr>
-              <th>No.</th>
-              <th>Mes</th>
-              <th>Nombre</th>
-              <th>Participación</th>
-              <th>Horas</th>
-              <th>Cursos</th>
-              <th>Comentarios</th>
-              <th>Enviado</th>
-              <th>Designación</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {isLoading
-              ? ADMIN_TABLE_SKELETON_ROWS.map((rowIndex) => (
-                  <tr key={`admin-skeleton-${rowIndex}`} className="table-skeleton">
-                    {ADMIN_TABLE_SKELETON_COLUMNS.map((size, cellIndex) => (
-                      <td key={`admin-skeleton-cell-${rowIndex}-${cellIndex}`}>
-                        <span className={`skeleton-line ${size}`} />
-                      </td>
-                    ))}
-                  </tr>
-                ))
-              : null}
-            {!isLoading && loadError ? (
-              <tr>
-                <td colSpan={10}>{loadError}</td>
-              </tr>
-            ) : null}
-            {!isLoading && !loadError && filteredReports.length === 0 ? (
-              <tr>
-                <td colSpan={10}>No hay registros disponibles.</td>
-              </tr>
-            ) : null}
-            {!isLoading &&
-              !loadError &&
-              filteredReports.map((report, index) => (
-                <tr key={report.id}>
-                  <td>{index + 1}</td>
-                  <td>{report.reportMonthLabel}</td>
-                  <td>{report.name}</td>
-                  <td>{report.participation}</td>
-                  <td>{report.hours || "-"}</td>
-                  <td>{report.courses || "-"}</td>
-                  <td>{report.comments || "-"}</td>
-                  <td>{formatDateTime(report.submittedAt)}</td>
-                  <td>{report.designation || "Publicador"}</td>
-                  <td>
-                    {isActiveMonthClosed ? (
-                      <span className="table-preview-tag">Solo vista previa</span>
-                    ) : (
-                      <div className="table-actions">
-                        <button
-                          className="table-button"
-                          type="button"
-                          onClick={() => handleEdit(report)}
-                        >
-                          Editar
-                        </button>
-                        <button
-                          className="table-button danger"
-                          type="button"
-                          onClick={() => handleDelete(report.id)}
-                        >
-                          Eliminar
-                        </button>
-                      </div>
-                    )}
-                  </td>
-                </tr>
-              ))}
-          </tbody>
-        </table>
-      </div>
+      {isDetailView ? (
+        <div id="month-details">
+          <AdminMonthDetailView
+            activeMonthLabel={activeMonthLabel}
+            filteredReports={filteredReports}
+            isActiveMonthClosed={isActiveMonthClosed}
+            isLoading={isLoading}
+            loadError={loadError}
+            onBack={handleBackToOverview}
+            onDelete={handleDelete}
+            onEdit={handleEdit}
+          />
+        </div>
+      ) : null}
     </section>
   );
 }

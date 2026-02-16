@@ -61,6 +61,10 @@ export default function App() {
               element={<AdminView authToken={authToken} onLogout={handleLogout} />}
             />
             <Route
+              path="/admin/:monthKey"
+              element={<AdminView authToken={authToken} onLogout={handleLogout} />}
+            />
+            <Route
               path="/config"
               element={
                 <ConfigView
