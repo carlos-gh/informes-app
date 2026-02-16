@@ -7,9 +7,11 @@ import NotFoundView from "./components/NotFoundView.jsx";
 import PageFooter from "./components/PageFooter.jsx";
 import ReportFormView from "./components/ReportFormView.jsx";
 import { clearToken, getStoredToken, storeToken } from "./utils/authStorage.js";
+import { getStoredTheme, storeTheme } from "./utils/themeStorage.js";
 
 export default function App() {
   const [authToken, setAuthToken] = useState("");
+  const [theme, setTheme] = useState("dark");
   const location = useLocation();
   const isAdminRoute = location.pathname.startsWith("/admin");
   const isConfigRoute = location.pathname.startsWith("/config");
@@ -20,6 +22,14 @@ export default function App() {
     setAuthToken(getStoredToken());
   }, []);
 
+  useEffect(() => {
+    setTheme(getStoredTheme());
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+  }, [theme]);
+
   const handleLogin = (token) => {
     storeToken(token);
     setAuthToken(token);
@@ -28,6 +38,15 @@ export default function App() {
   const handleLogout = () => {
     clearToken();
     setAuthToken("");
+  };
+
+  const handleThemeChange = (nextTheme) => {
+    if (nextTheme !== "dark" && nextTheme !== "light") {
+      return;
+    }
+
+    setTheme(nextTheme);
+    storeTheme(nextTheme);
   };
 
   return (
@@ -43,7 +62,14 @@ export default function App() {
             />
             <Route
               path="/config"
-              element={<ConfigView authToken={authToken} onLogout={handleLogout} />}
+              element={
+                <ConfigView
+                  authToken={authToken}
+                  onLogout={handleLogout}
+                  theme={theme}
+                  onThemeChange={handleThemeChange}
+                />
+              }
             />
             <Route path="*" element={<NotFoundView />} />
           </Routes>

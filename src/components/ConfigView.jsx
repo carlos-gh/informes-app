@@ -16,7 +16,12 @@ const CONFIG_TABLE_SKELETON_COLUMNS = [
   "skeleton-md",
 ];
 
-export default function ConfigView({ authToken, onLogout }) {
+export default function ConfigView({
+  authToken,
+  onLogout,
+  theme = "dark",
+  onThemeChange = () => {},
+}) {
   const [people, setPeople] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState("");
@@ -212,6 +217,16 @@ export default function ConfigView({ authToken, onLogout }) {
     }
   };
 
+  const handleThemeSelect = (event) => {
+    const value = event.target.value;
+
+    if (value !== "dark" && value !== "light") {
+      return;
+    }
+
+    onThemeChange(value);
+  };
+
   if (!isAuthenticated) {
     return (
       <section>
@@ -235,6 +250,25 @@ export default function ConfigView({ authToken, onLogout }) {
           </p>
         </div>
       </div>
+
+      <section className="config-theme">
+        <h2 className="config-section-title">Tema</h2>
+        <p className="config-section-description">
+          Defina si desea usar tema oscuro o claro en esta aplicación.
+        </p>
+        <div className="field">
+          <label htmlFor="config-theme">Tema predeterminado</label>
+          <select
+            id="config-theme"
+            name="config-theme"
+            value={theme}
+            onChange={handleThemeSelect}
+          >
+            <option value="dark">Oscuro (predeterminado)</option>
+            <option value="light">Claro</option>
+          </select>
+        </div>
+      </section>
 
       <div className="admin-toolbar config-toolbar">
         <div className="admin-toolbar-left">
