@@ -4,7 +4,6 @@ export default function PageHeader({ isAuthenticated, isLoginRoute, onLogout }) 
   return (
     <header className="page-header">
       <nav className="header-nav" aria-label="Navegación principal">
-        <span className="header-item header-brand">© Congregación El Puente Monte Tabor</span>
         {isAuthenticated ? (
           <>
             <Link className="header-item header-link" to="/">
