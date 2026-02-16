@@ -16,13 +16,22 @@ const ADMIN_TABLE_SKELETON_COLUMNS = [
 
 export default function AdminMonthDetailView({
   activeMonthLabel,
+  canClosePeriod,
+  canDownloadPdf,
+  closePeriodBlockReason,
   filteredReports,
   isActiveMonthClosed,
+  isSubmitting,
   isLoading,
   loadError,
   onBack,
+  onClosePeriod,
   onEdit,
   onDelete,
+  onDownloadPdf,
+  onOpenNewModal,
+  onOpenPending,
+  onOpenStats,
 }) {
   return (
     <section className="admin-detail">
@@ -33,14 +42,47 @@ export default function AdminMonthDetailView({
           </button>
           <span className="month-caption">
             Detalle del mes: {activeMonthLabel}
-            {isActiveMonthClosed ? " (cerrado)" : ""}
+            {isActiveMonthClosed ? " (completado)" : ""}
           </span>
+        </div>
+        <div className="admin-toolbar-right">
+          <button
+            className="secondary-button"
+            type="button"
+            onClick={onOpenNewModal}
+            disabled={isActiveMonthClosed}
+          >
+            Nuevo registro
+          </button>
+          <button
+            className="secondary-button"
+            type="button"
+            onClick={onClosePeriod}
+            disabled={!canClosePeriod || isSubmitting}
+            title={closePeriodBlockReason || undefined}
+          >
+            Cerrar periodo
+          </button>
+          <button className="secondary-button" type="button" onClick={onOpenPending}>
+            Pendientes
+          </button>
+          <button className="secondary-button" type="button" onClick={onOpenStats}>
+            Estadísticas
+          </button>
+          <button
+            className="secondary-button"
+            type="button"
+            onClick={onDownloadPdf}
+            disabled={!canDownloadPdf}
+          >
+            Generar PDF
+          </button>
         </div>
       </div>
 
       {isActiveMonthClosed ? (
         <div className="preview-notice">
-          Este periodo está cerrado. Los registros se muestran en modo solo vista
+          Este periodo está completado. Los registros se muestran en modo solo vista
           previa.
         </div>
       ) : null}

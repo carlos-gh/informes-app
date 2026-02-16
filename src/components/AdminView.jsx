@@ -229,7 +229,7 @@ export default function AdminView({ authToken, onLogout }) {
   const openNewModal = () => {
     if (isActiveMonthClosed) {
       setSubmitStatus("error");
-      setSubmitMessage("Este periodo está cerrado y solo permite vista previa.");
+      setSubmitMessage("Este periodo está completado y solo permite vista previa.");
       return;
     }
 
@@ -279,7 +279,7 @@ export default function AdminView({ authToken, onLogout }) {
       const apiError = String(data?.error || "").trim();
 
       if ("Report period is closed" === apiError) {
-        return "Este periodo está cerrado y solo permite vista previa.";
+        return "Este periodo está completado y solo permite vista previa.";
       }
 
       if ("Cannot close period without reports" === apiError) {
@@ -456,7 +456,7 @@ export default function AdminView({ authToken, onLogout }) {
 
       setSubmitStatus("success");
       setSubmitMessage(
-        "Periodo cerrado correctamente. Este mes ahora está en modo vista previa."
+        "Periodo completado correctamente. Este mes ahora está en modo vista previa."
       );
       await loadReports();
     } catch (error) {
@@ -488,7 +488,7 @@ export default function AdminView({ authToken, onLogout }) {
 
   const closePeriodBlockReason = useMemo(() => {
     if (isActiveMonthClosed) {
-      return "Este periodo ya está cerrado.";
+      return "Este periodo ya está completado.";
     }
 
     if (activeMonthKey !== defaultMonthKey) {
@@ -697,7 +697,7 @@ export default function AdminView({ authToken, onLogout }) {
   const handleEdit = (report) => {
     if (closedMonthKeySet.has(report.reportMonthKey)) {
       setSubmitStatus("error");
-      setSubmitMessage("Este periodo está cerrado y solo permite vista previa.");
+      setSubmitMessage("Este periodo está completado y solo permite vista previa.");
       return;
     }
 
@@ -721,7 +721,7 @@ export default function AdminView({ authToken, onLogout }) {
 
     if (report && closedMonthKeySet.has(report.reportMonthKey)) {
       setSubmitStatus("error");
-      setSubmitMessage("Este periodo está cerrado y solo permite vista previa.");
+      setSubmitMessage("Este periodo está completado y solo permite vista previa.");
       return;
     }
 
@@ -770,7 +770,7 @@ export default function AdminView({ authToken, onLogout }) {
 
     if (closedMonthKeySet.has(adminForm.reportMonthKey)) {
       setSubmitStatus("error");
-      setSubmitMessage("Este periodo está cerrado y solo permite vista previa.");
+      setSubmitMessage("Este periodo está completado y solo permite vista previa.");
       return;
     }
 
@@ -889,62 +889,25 @@ export default function AdminView({ authToken, onLogout }) {
         <div className="admin-toolbar-left">
           <span className="month-caption">
             Mostrando: {activeMonthLabel}
-            {isActiveMonthClosed ? " (cerrado)" : ""}
+            {isActiveMonthClosed ? " (completado)" : ""}
           </span>
         </div>
-        <div className="admin-toolbar-right">
-          <button
-            className="secondary-button"
-            type="button"
-            onClick={openNewModal}
-            disabled={isActiveMonthClosed}
-          >
-            Nuevo registro
-          </button>
-          <button
-            className="secondary-button"
-            type="button"
-            onClick={handleClosePeriod}
-            disabled={!canClosePeriod || submitStatus === "loading"}
-            title={closePeriodBlockReason || undefined}
-          >
-            Cerrar periodo
-          </button>
-          <button
-            className="secondary-button"
-            type="button"
-            onClick={() => setIsPendingOpen(true)}
-          >
-            Pendientes
-          </button>
-          <button
-            className="secondary-button"
-            type="button"
-            onClick={() => setIsStatsOpen(true)}
-          >
-            Estadísticas
-          </button>
-          <button
-            className="secondary-button"
-            type="button"
-            onClick={() => selectMonth(activeMonthKey, { openDetail: true })}
-          >
-            Ver detalle del mes
-          </button>
-          <button
-            className="secondary-button"
-            type="button"
-            onClick={handleDownloadPdf}
-            disabled={activeMonthKey !== defaultMonthKey}
-          >
-            Generar PDF
-          </button>
-        </div>
+        {!isDetailView ? (
+          <div className="admin-toolbar-right">
+            <button
+              className="secondary-button"
+              type="button"
+              onClick={() => selectMonth(activeMonthKey, { openDetail: true })}
+            >
+              Ver detalle del mes
+            </button>
+          </div>
+        ) : null}
       </div>
 
       {!isDetailView && isActiveMonthClosed ? (
         <div className="preview-notice">
-          Este periodo está cerrado. Los registros se muestran en modo solo vista
+          Este periodo está completado. Los registros se muestran en modo solo vista
           previa.
         </div>
       ) : null}
@@ -952,7 +915,7 @@ export default function AdminView({ authToken, onLogout }) {
       {!isDetailView && closedPeriodSummaries.length > 0 ? (
         <section className="closed-periods">
           <div className="closed-periods-header">
-            <h2 className="closed-periods-title">Meses cerrados</h2>
+            <h2 className="closed-periods-title">Meses completados</h2>
             <p className="closed-periods-subtitle">
               Seleccione un mes para abrir sus detalles.
             </p>
@@ -975,7 +938,7 @@ export default function AdminView({ authToken, onLogout }) {
                   {period.totalCourses}
                 </span>
                 <span className="closed-period-meta">
-                  Cerrado: {formatDateTime(period.closedAt)}
+                  Completado: {formatDateTime(period.closedAt)}
                 </span>
               </button>
             ))}
@@ -1417,13 +1380,22 @@ export default function AdminView({ authToken, onLogout }) {
         <div id="month-details">
           <AdminMonthDetailView
             activeMonthLabel={activeMonthLabel}
+            canClosePeriod={canClosePeriod}
+            canDownloadPdf={activeMonthKey === defaultMonthKey}
+            closePeriodBlockReason={closePeriodBlockReason}
             filteredReports={filteredReports}
             isActiveMonthClosed={isActiveMonthClosed}
+            isSubmitting={submitStatus === "loading"}
             isLoading={isLoading}
             loadError={loadError}
             onBack={handleBackToOverview}
+            onClosePeriod={handleClosePeriod}
             onDelete={handleDelete}
+            onDownloadPdf={handleDownloadPdf}
             onEdit={handleEdit}
+            onOpenNewModal={openNewModal}
+            onOpenPending={() => setIsPendingOpen(true)}
+            onOpenStats={() => setIsStatsOpen(true)}
           />
         </div>
       ) : null}
