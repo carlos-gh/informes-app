@@ -62,6 +62,7 @@ export default function AdminView({ authToken, onLogout }) {
   );
 
   const [reports, setReports] = useState([]);
+  const [periods, setPeriods] = useState([]);
   const [people, setPeople] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState("");
@@ -79,19 +80,30 @@ export default function AdminView({ authToken, onLogout }) {
 
   const isAuthenticated = Boolean(authToken);
 
-  const monthOptions = useMemo(() => {
-    const uniqueKeys = new Set([
-      defaultMonthKey,
-      ...reports.map((report) => report.reportMonthKey),
-    ]);
+  const closedPeriods = useMemo(() => {
+    return (periods || [])
+      .filter((period) => true === period.isClosed)
+      .sort((a, b) => b.reportMonthKey.localeCompare(a.reportMonthKey));
+  }, [periods]);
+
+  const closedMonthKeys = useMemo(() => {
+    return closedPeriods.map((period) => period.reportMonthKey).filter(Boolean);
+  }, [closedPeriods]);
+
+  const closedMonthKeySet = useMemo(() => {
+    return new Set(closedMonthKeys);
+  }, [closedMonthKeys]);
+
+  const availableMonthKeys = useMemo(() => {
+    const uniqueKeys = new Set([defaultMonthKey, ...closedMonthKeys]);
     return Array.from(uniqueKeys)
       .filter(Boolean)
       .sort((a, b) => b.localeCompare(a));
-  }, [reports, defaultMonthKey]);
+  }, [defaultMonthKey, closedMonthKeys]);
 
   const archiveMonthOptions = useMemo(() => {
-    return monthOptions.filter((monthKey) => monthKey !== defaultMonthKey);
-  }, [monthOptions, defaultMonthKey]);
+    return closedMonthKeys.filter((monthKey) => monthKey !== defaultMonthKey);
+  }, [closedMonthKeys, defaultMonthKey]);
 
   const activeMonthKey = selectedMonthKey || defaultMonthKey;
   const activeMonthLabel = useMemo(
@@ -106,6 +118,62 @@ export default function AdminView({ authToken, onLogout }) {
   const filteredReports = useMemo(() => {
     return reports.filter((report) => report.reportMonthKey === activeMonthKey);
   }, [reports, activeMonthKey]);
+  const isActiveMonthClosed = useMemo(() => {
+    return closedMonthKeySet.has(activeMonthKey);
+  }, [activeMonthKey, closedMonthKeySet]);
+
+  const reportSummaryByMonth = useMemo(() => {
+    const summary = new Map();
+
+    reports.forEach((report) => {
+      const monthKey = report.reportMonthKey;
+
+      if (!monthKey) {
+        return;
+      }
+
+      if (!summary.has(monthKey)) {
+        summary.set(monthKey, {
+          totalReports: 0,
+          totalHours: 0,
+          totalCourses: 0,
+        });
+      }
+
+      const entry = summary.get(monthKey);
+      entry.totalReports += 1;
+
+      const hoursValue = Number.parseFloat(report.hours);
+      const coursesValue = Number.parseFloat(report.courses);
+
+      if (!Number.isNaN(hoursValue)) {
+        entry.totalHours += hoursValue;
+      }
+
+      if (!Number.isNaN(coursesValue)) {
+        entry.totalCourses += coursesValue;
+      }
+    });
+
+    return summary;
+  }, [reports]);
+
+  const closedPeriodSummaries = useMemo(() => {
+    return closedPeriods.map((period) => {
+      const summary = reportSummaryByMonth.get(period.reportMonthKey) || {
+        totalReports: 0,
+        totalHours: 0,
+        totalCourses: 0,
+      };
+
+      return {
+        ...period,
+        totalReports: summary.totalReports,
+        totalHours: summary.totalHours,
+        totalCourses: summary.totalCourses,
+      };
+    });
+  }, [closedPeriods, reportSummaryByMonth]);
 
   const lastMonthKeys = useMemo(() => {
     const keys = Array.from(
@@ -169,6 +237,12 @@ export default function AdminView({ authToken, onLogout }) {
   };
 
   const openNewModal = () => {
+    if (isActiveMonthClosed) {
+      setSubmitStatus("error");
+      setSubmitMessage("Este periodo está cerrado y solo permite vista previa.");
+      return;
+    }
+
     resetAdminForm(activeMonthKey);
     setSubmitMessage("");
     setSubmitStatus("idle");
@@ -209,6 +283,25 @@ export default function AdminView({ authToken, onLogout }) {
     return Object.keys(nextErrors).length === 0;
   };
 
+  const getErrorMessageFromResponse = async (response, fallbackMessage) => {
+    try {
+      const data = await response.json();
+      const apiError = String(data?.error || "").trim();
+
+      if ("Report period is closed" === apiError) {
+        return "Este periodo está cerrado y solo permite vista previa.";
+      }
+
+      if ("Cannot close period without reports" === apiError) {
+        return "No se puede cerrar un periodo sin informes.";
+      }
+
+      return apiError || fallbackMessage;
+    } catch (error) {
+      return fallbackMessage;
+    }
+  };
+
   const loadReports = async () => {
     if (!isAuthenticated) {
       return;
@@ -236,6 +329,7 @@ export default function AdminView({ authToken, onLogout }) {
 
       const data = await response.json();
       setReports(data.items || []);
+      setPeriods(data.periods || []);
     } catch (error) {
       setLoadError("No se pudieron cargar los registros.");
     } finally {
@@ -247,6 +341,8 @@ export default function AdminView({ authToken, onLogout }) {
     if (!isAuthenticated) {
       return;
     }
+
+    setPendingError("");
 
     try {
       const response = await fetch("/api/people", {
@@ -267,6 +363,7 @@ export default function AdminView({ authToken, onLogout }) {
 
       const data = await response.json();
       setPeople(data.items || []);
+      setPendingError("");
     } catch (error) {
       setPendingError("No se pudieron cargar las personas.");
     }
@@ -278,14 +375,73 @@ export default function AdminView({ authToken, onLogout }) {
   }, [authToken]);
 
   useEffect(() => {
-    if (!selectedMonthKey || !monthOptions.includes(selectedMonthKey)) {
+    if (!selectedMonthKey || !availableMonthKeys.includes(selectedMonthKey)) {
       setSelectedMonthKey(defaultMonthKey);
     }
-  }, [defaultMonthKey, monthOptions, selectedMonthKey]);
+  }, [defaultMonthKey, availableMonthKeys, selectedMonthKey]);
 
   const handleArchiveChange = (event) => {
     const value = event.target.value;
     setSelectedMonthKey(value || defaultMonthKey);
+  };
+
+  const handleClosePeriod = async () => {
+    if (!canClosePeriod) {
+      setSubmitStatus("error");
+      setSubmitMessage(
+        closePeriodBlockReason || "No se puede cerrar el periodo seleccionado."
+      );
+      return;
+    }
+
+    if (
+      !window.confirm(
+        `¿Desea cerrar el periodo de ${activeMonthLabel}? El mes quedará en modo solo vista previa.`
+      )
+    ) {
+      return;
+    }
+
+    setSubmitMessage("");
+    setSubmitStatus("loading");
+
+    try {
+      const response = await fetch("/api/reports", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          action: "closePeriod",
+          reportMonthKey: activeMonthKey,
+        }),
+      });
+
+      if (response.status === 401) {
+        onLogout();
+        setSubmitStatus("error");
+        setSubmitMessage("Su sesión expiró. Inicie sesión de nuevo.");
+        return;
+      }
+
+      if (!response.ok) {
+        const errorMessage = await getErrorMessageFromResponse(
+          response,
+          "No se pudo cerrar el periodo."
+        );
+        throw new Error(errorMessage);
+      }
+
+      setSubmitStatus("success");
+      setSubmitMessage(
+        "Periodo cerrado correctamente. Este mes ahora está en modo vista previa."
+      );
+      await loadReports();
+    } catch (error) {
+      setSubmitStatus("error");
+      setSubmitMessage(String(error.message || "No se pudo cerrar el periodo."));
+    }
   };
 
   const normalizeName = (value) => {
@@ -298,7 +454,7 @@ export default function AdminView({ authToken, onLogout }) {
       .trim();
   };
 
-  const getPendingPeople = () => {
+  const pendingPeople = useMemo(() => {
     const reportedNames = new Set(
       filteredReports.map((report) => normalizeName(report.name || ""))
     );
@@ -307,7 +463,45 @@ export default function AdminView({ authToken, onLogout }) {
       const normalized = normalizeName(person.name || "");
       return normalized && !reportedNames.has(normalized);
     });
-  };
+  }, [filteredReports, people]);
+
+  const closePeriodBlockReason = useMemo(() => {
+    if (isActiveMonthClosed) {
+      return "Este periodo ya está cerrado.";
+    }
+
+    if (activeMonthKey !== defaultMonthKey) {
+      return "Solo puede cerrar el periodo del mes actual.";
+    }
+
+    if (pendingError) {
+      return "No se pudo validar la lista de pendientes.";
+    }
+
+    if (0 === people.length) {
+      return "Debe registrar personas para validar pendientes.";
+    }
+
+    if (0 === filteredReports.length) {
+      return "No hay informes cargados para este mes.";
+    }
+
+    if (0 < pendingPeople.length) {
+      return "Aún hay personas pendientes por informar.";
+    }
+
+    return "";
+  }, [
+    activeMonthKey,
+    defaultMonthKey,
+    filteredReports.length,
+    isActiveMonthClosed,
+    pendingError,
+    pendingPeople.length,
+    people.length,
+  ]);
+
+  const canClosePeriod = "" === closePeriodBlockReason;
 
   const handleDownloadPdf = () => {
     const monthKey = defaultMonthKey;
@@ -480,6 +674,12 @@ export default function AdminView({ authToken, onLogout }) {
   };
 
   const handleEdit = (report) => {
+    if (closedMonthKeySet.has(report.reportMonthKey)) {
+      setSubmitStatus("error");
+      setSubmitMessage("Este periodo está cerrado y solo permite vista previa.");
+      return;
+    }
+
     setEditingId(report.id);
     setAdminForm({
       reportMonthKey: report.reportMonthKey || defaultMonthKey,
@@ -496,6 +696,14 @@ export default function AdminView({ authToken, onLogout }) {
   };
 
   const handleDelete = async (reportId) => {
+    const report = reports.find((entry) => entry.id === reportId);
+
+    if (report && closedMonthKeySet.has(report.reportMonthKey)) {
+      setSubmitStatus("error");
+      setSubmitMessage("Este periodo está cerrado y solo permite vista previa.");
+      return;
+    }
+
     if (!window.confirm("¿Desea eliminar este registro?")) {
       return;
     }
@@ -519,7 +727,11 @@ export default function AdminView({ authToken, onLogout }) {
       }
 
       if (!response.ok) {
-        throw new Error("Failed to delete report");
+        const errorMessage = await getErrorMessageFromResponse(
+          response,
+          "No se pudo eliminar el registro."
+        );
+        throw new Error(errorMessage);
       }
 
       setSubmitStatus("success");
@@ -527,13 +739,19 @@ export default function AdminView({ authToken, onLogout }) {
       await loadReports();
     } catch (error) {
       setSubmitStatus("error");
-      setSubmitMessage("No se pudo eliminar el registro.");
+      setSubmitMessage(String(error.message || "No se pudo eliminar el registro."));
     }
   };
 
   const handleAdminSubmit = async (event) => {
     event.preventDefault();
     setSubmitMessage("");
+
+    if (closedMonthKeySet.has(adminForm.reportMonthKey)) {
+      setSubmitStatus("error");
+      setSubmitMessage("Este periodo está cerrado y solo permite vista previa.");
+      return;
+    }
 
     if (!validateAdminForm()) {
       setSubmitStatus("error");
@@ -557,13 +775,14 @@ export default function AdminView({ authToken, onLogout }) {
       const response = await fetch(
         editingId ? `/api/reports?id=${editingId}` : "/api/reports",
         {
-        method: editingId ? "PUT" : "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${authToken}`,
-        },
-        body: JSON.stringify(payload),
-      });
+          method: editingId ? "PUT" : "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${authToken}`,
+          },
+          body: JSON.stringify(payload),
+        }
+      );
 
       if (response.status === 401) {
         onLogout();
@@ -573,7 +792,11 @@ export default function AdminView({ authToken, onLogout }) {
       }
 
       if (!response.ok) {
-        throw new Error("Failed to save report");
+        const errorMessage = await getErrorMessageFromResponse(
+          response,
+          "No se pudo guardar el registro."
+        );
+        throw new Error(errorMessage);
       }
 
       setSubmitStatus("success");
@@ -585,7 +808,7 @@ export default function AdminView({ authToken, onLogout }) {
       await loadReports();
     } catch (error) {
       setSubmitStatus("error");
-      setSubmitMessage("No se pudo guardar el registro.");
+      setSubmitMessage(String(error.message || "No se pudo guardar el registro."));
     }
   };
 
@@ -643,11 +866,28 @@ export default function AdminView({ authToken, onLogout }) {
 
       <div className="admin-toolbar">
         <div className="admin-toolbar-left">
-          <span className="month-caption">Mostrando: {activeMonthLabel}</span>
+          <span className="month-caption">
+            Mostrando: {activeMonthLabel}
+            {isActiveMonthClosed ? " (cerrado)" : ""}
+          </span>
         </div>
         <div className="admin-toolbar-right">
-          <button className="secondary-button" type="button" onClick={openNewModal}>
+          <button
+            className="secondary-button"
+            type="button"
+            onClick={openNewModal}
+            disabled={isActiveMonthClosed}
+          >
             Nuevo registro
+          </button>
+          <button
+            className="secondary-button"
+            type="button"
+            onClick={handleClosePeriod}
+            disabled={!canClosePeriod || submitStatus === "loading"}
+            title={closePeriodBlockReason || undefined}
+          >
+            Cerrar periodo
           </button>
           <button
             className="secondary-button"
@@ -673,6 +913,45 @@ export default function AdminView({ authToken, onLogout }) {
           </button>
         </div>
       </div>
+
+      {isActiveMonthClosed ? (
+        <div className="preview-notice">
+          Este periodo está cerrado. Los registros se muestran en modo solo vista
+          previa.
+        </div>
+      ) : null}
+
+      {closedPeriodSummaries.length > 0 ? (
+        <section className="closed-periods">
+          <div className="closed-periods-header">
+            <h2 className="closed-periods-title">Meses cerrados</h2>
+            <p className="closed-periods-subtitle">
+              Seleccione un mes para abrir sus detalles.
+            </p>
+          </div>
+          <div className="closed-periods-list">
+            {closedPeriodSummaries.map((period) => (
+              <button
+                key={period.reportMonthKey}
+                className={`closed-period-item ${
+                  activeMonthKey === period.reportMonthKey ? "active" : ""
+                }`}
+                type="button"
+                onClick={() => setSelectedMonthKey(period.reportMonthKey)}
+              >
+                <span className="closed-period-month">{period.reportMonthLabel}</span>
+                <span className="closed-period-meta">
+                  Informes: {period.totalReports} · Horas: {period.totalHours} · Cursos:{" "}
+                  {period.totalCourses}
+                </span>
+                <span className="closed-period-meta">
+                  Cerrado: {formatDateTime(period.closedAt)}
+                </span>
+              </button>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       {isModalOpen ? (
         <div className="modal-overlay" role="dialog" aria-modal="true">
@@ -925,12 +1204,12 @@ export default function AdminView({ authToken, onLogout }) {
                         </tr>
                       </thead>
                       <tbody>
-                        {getPendingPeople().length === 0 ? (
+                        {pendingPeople.length === 0 ? (
                           <tr>
                             <td colSpan={4}>No hay pendientes.</td>
                           </tr>
                         ) : (
-                          getPendingPeople().map((person, index) => (
+                          pendingPeople.map((person, index) => (
                             <tr key={person.id}>
                               <td>{index + 1}</td>
                               <td>{person.name}</td>
@@ -1104,7 +1383,7 @@ export default function AdminView({ authToken, onLogout }) {
         </div>
       ) : null}
 
-      <div className="table-wrapper">
+      <div id="month-details" className="table-wrapper">
         <table className="table">
           <thead>
             <tr>
@@ -1156,22 +1435,26 @@ export default function AdminView({ authToken, onLogout }) {
                   <td>{formatDateTime(report.submittedAt)}</td>
                   <td>{report.designation || "Publicador"}</td>
                   <td>
-                    <div className="table-actions">
-                      <button
-                        className="table-button"
-                        type="button"
-                        onClick={() => handleEdit(report)}
-                      >
-                        Editar
-                      </button>
-                      <button
-                        className="table-button danger"
-                        type="button"
-                        onClick={() => handleDelete(report.id)}
-                      >
-                        Eliminar
-                      </button>
-                    </div>
+                    {isActiveMonthClosed ? (
+                      <span className="table-preview-tag">Solo vista previa</span>
+                    ) : (
+                      <div className="table-actions">
+                        <button
+                          className="table-button"
+                          type="button"
+                          onClick={() => handleEdit(report)}
+                        >
+                          Editar
+                        </button>
+                        <button
+                          className="table-button danger"
+                          type="button"
+                          onClick={() => handleDelete(report.id)}
+                        >
+                          Eliminar
+                        </button>
+                      </div>
+                    )}
                   </td>
                 </tr>
               ))}

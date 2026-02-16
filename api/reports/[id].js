@@ -27,6 +27,26 @@ const ensureReportsTable = async () => {
   await sql`UPDATE reports SET designation = 'Publicador' WHERE designation IS NULL OR designation = '';`;
 };
 
+const ensureReportPeriodsTable = async () => {
+  await sql`
+    CREATE TABLE IF NOT EXISTS report_periods (
+      report_month_key TEXT PRIMARY KEY,
+      report_month_label TEXT NOT NULL,
+      is_closed BOOLEAN NOT NULL DEFAULT FALSE,
+      closed_at TIMESTAMPTZ
+    );
+  `;
+
+  await sql`ALTER TABLE report_periods ADD COLUMN IF NOT EXISTS report_month_label TEXT;`;
+  await sql`ALTER TABLE report_periods ADD COLUMN IF NOT EXISTS is_closed BOOLEAN NOT NULL DEFAULT FALSE;`;
+  await sql`ALTER TABLE report_periods ADD COLUMN IF NOT EXISTS closed_at TIMESTAMPTZ;`;
+};
+
+const ensureReportSchema = async () => {
+  await ensureReportsTable();
+  await ensureReportPeriodsTable();
+};
+
 const getReportDateFromKey = (monthKey) => {
   if (!monthKey) {
     return null;
@@ -55,6 +75,22 @@ const getReportMonthLabel = (monthKey) => {
   );
 };
 
+const isReportPeriodClosed = async (reportMonthKey) => {
+  if (!reportMonthKey) {
+    return false;
+  }
+
+  const result = await sql`
+    SELECT
+      is_closed AS "isClosed"
+    FROM report_periods
+    WHERE report_month_key = ${reportMonthKey}
+    LIMIT 1;
+  `;
+
+  return true === Boolean(result.rows[0]?.isClosed);
+};
+
 export default async function handler(req, res) {
   try {
     if (req.method !== "PUT" && req.method !== "DELETE") {
@@ -74,9 +110,30 @@ export default async function handler(req, res) {
       return;
     }
 
-    await ensureReportsTable();
+    await ensureReportSchema();
 
     if (req.method === "DELETE") {
+      const currentReport = await sql`
+        SELECT report_month_key AS "reportMonthKey"
+        FROM reports
+        WHERE id = ${reportId}
+        LIMIT 1;
+      `;
+
+      if (0 === currentReport.rows.length) {
+        res.status(404).json({ error: "Report not found" });
+        return;
+      }
+
+      const currentReportMonthKey = String(
+        currentReport.rows[0]?.reportMonthKey || ""
+      );
+
+      if (await isReportPeriodClosed(currentReportMonthKey)) {
+        res.status(409).json({ error: "Report period is closed" });
+        return;
+      }
+
       const result = await sql`
         DELETE FROM reports
         WHERE id = ${reportId}
@@ -120,6 +177,30 @@ export default async function handler(req, res) {
 
     if (!participation) {
       res.status(400).json({ error: "Participation is required" });
+      return;
+    }
+
+    const currentReport = await sql`
+      SELECT report_month_key AS "reportMonthKey"
+      FROM reports
+      WHERE id = ${reportId}
+      LIMIT 1;
+    `;
+
+    if (0 === currentReport.rows.length) {
+      res.status(404).json({ error: "Report not found" });
+      return;
+    }
+
+    const currentReportMonthKey = String(currentReport.rows[0]?.reportMonthKey || "");
+
+    if (await isReportPeriodClosed(currentReportMonthKey)) {
+      res.status(409).json({ error: "Report period is closed" });
+      return;
+    }
+
+    if (await isReportPeriodClosed(reportMonthKey)) {
+      res.status(409).json({ error: "Report period is closed" });
       return;
     }
 

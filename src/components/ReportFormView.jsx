@@ -108,6 +108,14 @@ export default function ReportFormView({ isAuthenticated = false }) {
       });
 
       if (!response.ok) {
+        if (response.status === 409) {
+          setSubmitStatus("error");
+          setSubmitMessage(
+            "El periodo de este mes ya está cerrado. Contacte a su superintendente de grupo."
+          );
+          return;
+        }
+
         throw new Error("Network response was not ok");
       }
 

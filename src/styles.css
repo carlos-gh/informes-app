@@ -319,10 +319,85 @@ input:disabled {
   color: #94a3b8;
 }
 
+.preview-notice {
+  margin-top: -8px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(251, 191, 36, 0.4);
+  background: rgba(251, 191, 36, 0.12);
+  color: #fbbf24;
+  font-size: 0.9rem;
+}
+
 .admin-toolbar-right {
   display: flex;
   flex-wrap: nowrap;
   gap: 12px;
+}
+
+.closed-periods {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  background: rgba(148, 163, 184, 0.08);
+}
+
+.closed-periods-header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.closed-periods-title {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.closed-periods-subtitle {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #94a3b8;
+}
+
+.closed-periods-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 10px;
+}
+
+.closed-period-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  text-align: left;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  background: rgba(15, 23, 42, 0.45);
+  color: #e2e8f0;
+  cursor: pointer;
+}
+
+.closed-period-item:hover {
+  border-color: rgba(99, 102, 241, 0.65);
+}
+
+.closed-period-item.active {
+  border-color: rgba(99, 102, 241, 0.85);
+  background: rgba(99, 102, 241, 0.15);
+}
+
+.closed-period-month {
+  font-weight: 600;
+}
+
+.closed-period-meta {
+  font-size: 0.85rem;
+  color: #94a3b8;
 }
 
 .form-actions {
@@ -441,6 +516,15 @@ input:disabled {
   gap: 6px;
 }
 
+.table-preview-tag {
+  display: inline-flex;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  color: #94a3b8;
+  font-size: 0.82rem;
+}
+
 .table-button.danger {
   border-color: rgba(248, 113, 113, 0.5);
   background: rgba(248, 113, 113, 0.12);
@@ -517,6 +601,14 @@ input:disabled {
   .admin-toolbar-right {
     flex-wrap: wrap;
     width: 100%;
+  }
+
+  .closed-periods {
+    padding: 14px;
+  }
+
+  .closed-periods-list {
+    grid-template-columns: 1fr;
   }
 
   .config-section-head {
@@ -935,7 +1027,8 @@ input:disabled {
 
 :root[data-theme="light"] .table-wrapper,
 :root[data-theme="light"] .config-theme,
-:root[data-theme="light"] .config-people {
+:root[data-theme="light"] .config-people,
+:root[data-theme="light"] .closed-periods {
   background: rgba(148, 163, 184, 0.1);
   border-color: rgba(148, 163, 184, 0.4);
 }
@@ -971,6 +1064,32 @@ input:disabled {
 :root[data-theme="light"] .stats-card {
   background: #f8fafc;
   border-color: rgba(148, 163, 184, 0.35);
+}
+
+:root[data-theme="light"] .preview-notice {
+  border-color: rgba(202, 138, 4, 0.4);
+  background: rgba(250, 204, 21, 0.15);
+  color: #a16207;
+}
+
+:root[data-theme="light"] .closed-period-item {
+  background: #ffffff;
+  border-color: rgba(148, 163, 184, 0.45);
+  color: #0f172a;
+}
+
+:root[data-theme="light"] .closed-period-item.active {
+  background: rgba(99, 102, 241, 0.1);
+}
+
+:root[data-theme="light"] .closed-period-meta,
+:root[data-theme="light"] .closed-periods-subtitle,
+:root[data-theme="light"] .table-preview-tag {
+  color: #475569;
+}
+
+:root[data-theme="light"] .table-preview-tag {
+  border-color: rgba(148, 163, 184, 0.5);
 }
 
 :root[data-theme="light"] .footer-item,
