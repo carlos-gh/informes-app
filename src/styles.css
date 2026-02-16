@@ -403,16 +403,24 @@ input:disabled {
 .admin-detail {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 20px;
 }
 
 .admin-detail-toolbar {
-  margin-top: 4px;
+  margin-top: 8px;
 }
 
 .admin-detail-left {
   flex-wrap: wrap;
   gap: 12px;
+}
+
+.admin-detail .admin-toolbar-right {
+  row-gap: 12px;
+}
+
+.admin-detail .table-wrapper {
+  margin-top: 6px;
 }
 
 .form-actions {

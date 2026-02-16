@@ -91,10 +91,6 @@ export default function AdminView({ authToken, onLogout }) {
       .sort((a, b) => b.localeCompare(a));
   }, [defaultMonthKey, closedMonthKeys]);
 
-  const archiveMonthOptions = useMemo(() => {
-    return closedMonthKeys.filter((monthKey) => monthKey !== defaultMonthKey);
-  }, [closedMonthKeys, defaultMonthKey]);
-
   const activeMonthKey = selectedMonthKey || defaultMonthKey;
   const activeMonthLabel = useMemo(
     () => getReportingLabelFromKey(activeMonthKey),
@@ -395,12 +391,6 @@ export default function AdminView({ authToken, onLogout }) {
     if (isDetailView) {
       navigate(`/admin/${nextMonthKey}`);
     }
-  };
-
-  const handleArchiveChange = (event) => {
-    const value = event.target.value;
-
-    selectMonth(value || defaultMonthKey, { openDetail: !isDetailView });
   };
 
   const handleBackToOverview = () => {
@@ -854,26 +844,6 @@ export default function AdminView({ authToken, onLogout }) {
           <h1 className="title">Registros de informes</h1>
         </div>
       </div>
-
-      {isDetailView ? (
-        <div className="month-toolbar">
-          <div className="month-archive">
-            <label htmlFor="archive-month">Archivo</label>
-            <select
-              id="archive-month"
-              value={activeMonthKey === defaultMonthKey ? "" : activeMonthKey}
-              onChange={handleArchiveChange}
-            >
-              <option value="">{currentMonthLabel}</option>
-              {archiveMonthOptions.map((monthKey) => (
-                <option key={monthKey} value={monthKey}>
-                  {getReportingLabelFromKey(monthKey)}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-      ) : null}
 
       {!isDetailView && closedPeriodSummaries.length > 0 ? (
         <section className="closed-periods">
