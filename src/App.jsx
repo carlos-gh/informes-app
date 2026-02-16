@@ -88,11 +88,13 @@ export default function App() {
 
   return (
     <div className="page">
-      <PageHeader
-        isAuthenticated={isAuthenticated}
-        isLoginRoute={isLoginRoute}
-        onLogout={handleLogout}
-      />
+      {isAuthenticated ? (
+        <PageHeader
+          isAuthenticated={isAuthenticated}
+          isLoginRoute={isLoginRoute}
+          onLogout={handleLogout}
+        />
+      ) : null}
 
       <div className="page-main">
         <main className={`card ${isAdminRoute || isConfigRoute ? "card-wide" : ""}`}>
