@@ -1,5 +1,83 @@
 import { formatDateTime } from "../utils/reporting.js";
 
+const NewReportIcon = () => (
+  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+    <path
+      d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Zm0 0v5h5M12 11v6M9 14h6"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
+const ReopenPeriodIcon = () => (
+  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+    <path
+      d="M7 11V8a5 5 0 0 1 9.5-2M6 11h11a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1Z"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
+const ClosePeriodIcon = () => (
+  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+    <path
+      d="M7 11V8a5 5 0 0 1 10 0v3M6 11h12a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1Z"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
+const PendingIcon = () => (
+  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+    <path
+      d="M9 11h8M9 15h5M7 3h10a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm-.5 7.5h.01M6.5 14.5h.01"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
+const StatsIcon = () => (
+  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+    <path
+      d="M4 20h16M7 20v-6m5 6V9m5 11v-9"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
+const PdfIcon = () => (
+  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+    <path
+      d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Zm0 0v5h5M9 14h1.5a1.5 1.5 0 0 1 0 3H9Zm4 3v-3h1.4a1.6 1.6 0 0 1 0 3Zm0 0h1.2"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
 const ADMIN_TABLE_SKELETON_ROWS = Array.from({ length: 6 }, (_, index) => index);
 const ADMIN_TABLE_SKELETON_COLUMNS = [
   "skeleton-xs",
@@ -50,15 +128,18 @@ export default function AdminMonthDetailView({
         </div>
         <div className="admin-toolbar-right">
           <button
-            className="secondary-button"
+            className="secondary-button action-button"
             type="button"
             onClick={onOpenNewModal}
             disabled={isActiveMonthClosed}
           >
-            Nuevo registro
+            <span className="action-button-icon" aria-hidden="true">
+              <NewReportIcon />
+            </span>
+            <span>Nuevo registro</span>
           </button>
           <button
-            className="secondary-button"
+            className="secondary-button action-button"
             type="button"
             onClick={isActiveMonthClosed ? onReopenPeriod : onClosePeriod}
             disabled={
@@ -72,21 +153,37 @@ export default function AdminMonthDetailView({
                 : closePeriodBlockReason || undefined
             }
           >
-            {isActiveMonthClosed ? "Reabrir periodo" : "Cerrar periodo"}
-          </button>
-          <button className="secondary-button" type="button" onClick={onOpenPending}>
-            Pendientes
-          </button>
-          <button className="secondary-button" type="button" onClick={onOpenStats}>
-            Estadísticas
+            <span className="action-button-icon" aria-hidden="true">
+              {isActiveMonthClosed ? <ReopenPeriodIcon /> : <ClosePeriodIcon />}
+            </span>
+            <span>{isActiveMonthClosed ? "Reabrir periodo" : "Cerrar periodo"}</span>
           </button>
           <button
-            className="secondary-button"
+            className="secondary-button action-button"
+            type="button"
+            onClick={onOpenPending}
+          >
+            <span className="action-button-icon" aria-hidden="true">
+              <PendingIcon />
+            </span>
+            <span>Pendientes</span>
+          </button>
+          <button className="secondary-button action-button" type="button" onClick={onOpenStats}>
+            <span className="action-button-icon" aria-hidden="true">
+              <StatsIcon />
+            </span>
+            <span>Estadísticas</span>
+          </button>
+          <button
+            className="secondary-button action-button"
             type="button"
             onClick={onDownloadPdf}
             disabled={!canDownloadPdf}
           >
-            Generar PDF
+            <span className="action-button-icon" aria-hidden="true">
+              <PdfIcon />
+            </span>
+            <span>Generar PDF</span>
           </button>
         </div>
       </div>
