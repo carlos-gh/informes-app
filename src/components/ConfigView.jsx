@@ -12,6 +12,7 @@ const buildDefaultGroupForm = () => ({
   groupNumber: "",
   name: "",
   superintendentUserId: "",
+  assistantUserId: "",
 });
 
 const CONFIG_TABLE_SKELETON_ROWS = Array.from({ length: 5 }, (_, index) => index);
@@ -28,6 +29,7 @@ const GROUP_TABLE_SKELETON_COLUMNS = [
   "skeleton-xs",
   "skeleton-sm",
   "skeleton-lg",
+  "skeleton-md",
   "skeleton-md",
   "skeleton-md",
 ];
@@ -488,6 +490,23 @@ export default function ConfigView({
       nextErrors.superintendentUserId = "Seleccione un superintendente válido.";
     }
 
+    if (
+      groupFormState.assistantUserId &&
+      Number.isNaN(Number(groupFormState.assistantUserId))
+    ) {
+      nextErrors.assistantUserId = "Seleccione un auxiliar válido.";
+    }
+
+    if (
+      groupFormState.superintendentUserId &&
+      groupFormState.assistantUserId &&
+      String(groupFormState.superintendentUserId) ===
+        String(groupFormState.assistantUserId)
+    ) {
+      nextErrors.assistantUserId =
+        "El auxiliar debe ser una persona distinta al superintendente.";
+    }
+
     setGroupFormErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
   };
@@ -500,6 +519,7 @@ export default function ConfigView({
       superintendentUserId: group.superintendentUserId
         ? String(group.superintendentUserId)
         : "",
+      assistantUserId: group.assistantUserId ? String(group.assistantUserId) : "",
     });
     setGroupSubmitStatus("idle");
     setGroupSubmitMessage("");
@@ -524,6 +544,9 @@ export default function ConfigView({
       name: groupFormState.name.trim(),
       superintendentUserId: groupFormState.superintendentUserId
         ? Number(groupFormState.superintendentUserId)
+        : null,
+      assistantUserId: groupFormState.assistantUserId
+        ? Number(groupFormState.assistantUserId)
         : null,
     };
 
@@ -616,7 +639,7 @@ export default function ConfigView({
             <div>
               <h2 className="config-section-title">Grupos</h2>
               <p className="config-section-description">
-                Cree grupos y asigne su superintendente responsable.
+                Cree grupos y asigne su superintendente y auxiliar responsables.
               </p>
             </div>
             <div className="config-section-actions">
@@ -639,6 +662,7 @@ export default function ConfigView({
                   <th>Grupo</th>
                   <th>Nombre</th>
                   <th>Superintendente</th>
+                  <th>Auxiliar</th>
                   <th>Acciones</th>
                 </tr>
               </thead>
@@ -656,12 +680,12 @@ export default function ConfigView({
                   : null}
                 {!isGroupsLoading && groupsLoadError ? (
                   <tr>
-                    <td colSpan={5}>{groupsLoadError}</td>
+                    <td colSpan={6}>{groupsLoadError}</td>
                   </tr>
                 ) : null}
                 {!isGroupsLoading && !groupsLoadError && groups.length === 0 ? (
                   <tr>
-                    <td colSpan={5}>No hay grupos registrados.</td>
+                    <td colSpan={6}>No hay grupos registrados.</td>
                   </tr>
                 ) : null}
                 {!isGroupsLoading &&
@@ -672,6 +696,7 @@ export default function ConfigView({
                       <td>{group.groupNumber}</td>
                       <td>{group.name}</td>
                       <td>{group.superintendentUsername || "-"}</td>
+                      <td>{group.assistantUsername || "-"}</td>
                       <td>
                         <button
                           className="table-button"
@@ -1099,6 +1124,32 @@ export default function ConfigView({
                 {groupFormErrors.superintendentUserId ? (
                   <span id="group-superintendent-error" className="error">
                     {groupFormErrors.superintendentUserId}
+                  </span>
+                ) : null}
+              </div>
+
+              <div className="field">
+                <label htmlFor="group-assistant">Auxiliar asignado</label>
+                <select
+                  id="group-assistant"
+                  name="group-assistant"
+                  value={groupFormState.assistantUserId}
+                  onChange={(event) => updateGroupForm("assistantUserId", event.target.value)}
+                  aria-invalid={Boolean(groupFormErrors.assistantUserId)}
+                  aria-describedby={
+                    groupFormErrors.assistantUserId ? "group-assistant-error" : undefined
+                  }
+                >
+                  <option value="">Sin asignar</option>
+                  {groupUsers.map((user) => (
+                    <option key={user.id} value={user.id}>
+                      {user.username}
+                    </option>
+                  ))}
+                </select>
+                {groupFormErrors.assistantUserId ? (
+                  <span id="group-assistant-error" className="error">
+                    {groupFormErrors.assistantUserId}
                   </span>
                 ) : null}
               </div>

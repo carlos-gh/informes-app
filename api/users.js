@@ -259,19 +259,37 @@ export default async function handler(req, res) {
         await sql`
           UPDATE groups
           SET
-            superintendent_user_id = NULL,
+            superintendent_user_id = CASE
+              WHEN superintendent_user_id = ${userId} THEN NULL
+              ELSE superintendent_user_id
+            END,
+            assistant_user_id = CASE
+              WHEN assistant_user_id = ${userId} THEN NULL
+              ELSE assistant_user_id
+            END,
             updated_at = NOW()
-          WHERE superintendent_user_id = ${userId}
-            AND group_number <> ${groupNumber};
+          WHERE group_number <> ${groupNumber}
+            AND (
+              superintendent_user_id = ${userId}
+              OR assistant_user_id = ${userId}
+            );
         `;
 
         if (!isActive) {
           await sql`
             UPDATE groups
             SET
-              superintendent_user_id = NULL,
+              superintendent_user_id = CASE
+                WHEN superintendent_user_id = ${userId} THEN NULL
+                ELSE superintendent_user_id
+              END,
+              assistant_user_id = CASE
+                WHEN assistant_user_id = ${userId} THEN NULL
+                ELSE assistant_user_id
+              END,
               updated_at = NOW()
-            WHERE superintendent_user_id = ${userId};
+            WHERE superintendent_user_id = ${userId}
+               OR assistant_user_id = ${userId};
           `;
         }
 

@@ -184,6 +184,7 @@ export const ensureIdentitySchema = async () => {
       group_number INTEGER PRIMARY KEY,
       name TEXT NOT NULL,
       superintendent_user_id INTEGER UNIQUE,
+      assistant_user_id INTEGER,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
@@ -219,6 +220,7 @@ export const ensureIdentitySchema = async () => {
   await sql`ALTER TABLE groups ADD COLUMN IF NOT EXISTS group_number INTEGER;`;
   await sql`ALTER TABLE groups ADD COLUMN IF NOT EXISTS name TEXT;`;
   await sql`ALTER TABLE groups ADD COLUMN IF NOT EXISTS superintendent_user_id INTEGER;`;
+  await sql`ALTER TABLE groups ADD COLUMN IF NOT EXISTS assistant_user_id INTEGER;`;
   await sql`ALTER TABLE groups ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW();`;
   await sql`ALTER TABLE groups ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();`;
 
@@ -249,6 +251,7 @@ export const ensureIdentitySchema = async () => {
   await sql`UPDATE users SET updated_at = NOW() WHERE updated_at IS NULL;`;
   await sql`CREATE UNIQUE INDEX IF NOT EXISTS users_username_unique_idx ON users (username);`;
   await sql`CREATE UNIQUE INDEX IF NOT EXISTS groups_group_number_unique_idx ON groups (group_number);`;
+  await sql`CREATE UNIQUE INDEX IF NOT EXISTS groups_assistant_user_id_unique_idx ON groups (assistant_user_id) WHERE assistant_user_id IS NOT NULL;`;
   await sql`CREATE INDEX IF NOT EXISTS auth_activity_created_at_idx ON auth_activity (created_at DESC);`;
   await sql`CREATE INDEX IF NOT EXISTS auth_activity_user_id_idx ON auth_activity (user_id);`;
 };

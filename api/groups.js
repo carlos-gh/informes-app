@@ -22,7 +22,7 @@ const parseGroupNumber = (value) => {
   return groupNumber;
 };
 
-const parseSuperintendentUserId = (value) => {
+const parseResponsibleUserId = (value) => {
   if (value === null || value === undefined || String(value).trim() === "") {
     return null;
   }
@@ -58,7 +58,7 @@ const getAuthContext = async (req) => {
   return freshAuth;
 };
 
-const validateSuperintendent = async (userId) => {
+const validateGroupManagerUser = async (userId) => {
   if (userId === null) {
     return true;
   }
@@ -103,9 +103,12 @@ export default async function handler(req, res) {
           g.group_number AS "groupNumber",
           g.name,
           g.superintendent_user_id AS "superintendentUserId",
-          u.username AS "superintendentUsername"
+          g.assistant_user_id AS "assistantUserId",
+          su.username AS "superintendentUsername",
+          au.username AS "assistantUsername"
         FROM groups g
-        LEFT JOIN users u ON u.id = g.superintendent_user_id
+        LEFT JOIN users su ON su.id = g.superintendent_user_id
+        LEFT JOIN users au ON au.id = g.assistant_user_id
         ORDER BY g.group_number ASC;
       `;
 
@@ -156,7 +159,8 @@ export default async function handler(req, res) {
 
     const groupNumber = parseGroupNumber(body.groupNumber);
     const name = String(body.name || "").trim();
-    const superintendentUserId = parseSuperintendentUserId(body.superintendentUserId);
+    const superintendentUserId = parseResponsibleUserId(body.superintendentUserId);
+    const assistantUserId = parseResponsibleUserId(body.assistantUserId);
 
     if (!groupNumber) {
       res.status(400).json({ error: "Invalid group number" });
@@ -168,10 +172,82 @@ export default async function handler(req, res) {
       return;
     }
 
-    if (!(await validateSuperintendent(superintendentUserId))) {
+    if (
+      superintendentUserId !== null &&
+      assistantUserId !== null &&
+      superintendentUserId === assistantUserId
+    ) {
+      res.status(400).json({ error: "Superintendent and assistant must be different users" });
+      return;
+    }
+
+    if (!(await validateGroupManagerUser(superintendentUserId))) {
       res.status(400).json({ error: "Invalid superintendent user" });
       return;
     }
+
+    if (!(await validateGroupManagerUser(assistantUserId))) {
+      res.status(400).json({ error: "Invalid assistant user" });
+      return;
+    }
+
+    const synchronizeAssignedUsers = async () => {
+      if (superintendentUserId !== null) {
+        await sql`
+          UPDATE groups
+          SET
+            superintendent_user_id = NULL,
+            updated_at = NOW()
+          WHERE superintendent_user_id = ${superintendentUserId}
+            AND group_number <> ${groupNumber};
+        `;
+
+        await sql`
+          UPDATE groups
+          SET
+            assistant_user_id = NULL,
+            updated_at = NOW()
+          WHERE assistant_user_id = ${superintendentUserId}
+            AND group_number <> ${groupNumber};
+        `;
+
+        await sql`
+          UPDATE users
+          SET
+            group_number = ${groupNumber},
+            updated_at = NOW()
+          WHERE id = ${superintendentUserId};
+        `;
+      }
+
+      if (assistantUserId !== null) {
+        await sql`
+          UPDATE groups
+          SET
+            superintendent_user_id = NULL,
+            updated_at = NOW()
+          WHERE superintendent_user_id = ${assistantUserId}
+            AND group_number <> ${groupNumber};
+        `;
+
+        await sql`
+          UPDATE groups
+          SET
+            assistant_user_id = NULL,
+            updated_at = NOW()
+          WHERE assistant_user_id = ${assistantUserId}
+            AND group_number <> ${groupNumber};
+        `;
+
+        await sql`
+          UPDATE users
+          SET
+            group_number = ${groupNumber},
+            updated_at = NOW()
+          WHERE id = ${assistantUserId};
+        `;
+      }
+    };
 
     if (req.method === "POST") {
       const existsResult = await sql`
@@ -190,33 +266,18 @@ export default async function handler(req, res) {
         INSERT INTO groups (
           group_number,
           name,
-          superintendent_user_id
+          superintendent_user_id,
+          assistant_user_id
         )
         VALUES (
           ${groupNumber},
           ${name},
-          ${superintendentUserId}
+          ${superintendentUserId},
+          ${assistantUserId}
         );
       `;
 
-      if (superintendentUserId !== null) {
-        await sql`
-          UPDATE groups
-          SET
-            superintendent_user_id = NULL,
-            updated_at = NOW()
-          WHERE superintendent_user_id = ${superintendentUserId}
-            AND group_number <> ${groupNumber};
-        `;
-
-        await sql`
-          UPDATE users
-          SET
-            group_number = ${groupNumber},
-            updated_at = NOW()
-          WHERE id = ${superintendentUserId};
-        `;
-      }
+      await synchronizeAssignedUsers();
 
       res.status(200).json({ ok: true, groupNumber });
       return;
@@ -239,33 +300,17 @@ export default async function handler(req, res) {
       SET
         name = ${name},
         superintendent_user_id = ${superintendentUserId},
+        assistant_user_id = ${assistantUserId},
         updated_at = NOW()
       WHERE group_number = ${groupNumber};
     `;
 
-    if (superintendentUserId !== null) {
-      await sql`
-        UPDATE groups
-        SET
-          superintendent_user_id = NULL,
-          updated_at = NOW()
-        WHERE superintendent_user_id = ${superintendentUserId}
-          AND group_number <> ${groupNumber};
-      `;
-
-      await sql`
-        UPDATE users
-        SET
-          group_number = ${groupNumber},
-          updated_at = NOW()
-        WHERE id = ${superintendentUserId};
-      `;
-    }
+    await synchronizeAssignedUsers();
 
     res.status(200).json({ ok: true, groupNumber });
   } catch (error) {
     if (String(error?.code || "") === "23505") {
-      res.status(409).json({ error: "Superintendent already assigned" });
+      res.status(409).json({ error: "Responsible user already assigned to another group" });
       return;
     }
 

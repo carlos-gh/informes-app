@@ -84,7 +84,7 @@ const ensureGroupExists = async (groupNumber) => {
   return 0 < result.rows.length;
 };
 
-const isGroupSuperintendent = async (auth) => {
+const isGroupManager = async (auth) => {
   if (!auth || isSuperAdmin(auth)) {
     return false;
   }
@@ -99,7 +99,10 @@ const isGroupSuperintendent = async (auth) => {
     SELECT group_number
     FROM groups
     WHERE group_number = ${authGroupNumber}
-      AND superintendent_user_id = ${auth.userId}
+      AND (
+        superintendent_user_id = ${auth.userId}
+        OR assistant_user_id = ${auth.userId}
+      )
     LIMIT 1;
   `;
 
@@ -142,7 +145,7 @@ export default async function handler(req, res) {
         return;
       }
 
-      if (!(await isGroupSuperintendent(auth))) {
+      if (!(await isGroupManager(auth))) {
         res.status(403).json({ error: "Forbidden" });
         return;
       }
@@ -163,7 +166,7 @@ export default async function handler(req, res) {
       return;
     }
 
-    const canManageAsSuperintendent = await isGroupSuperintendent(auth);
+    const canManageAsGroupManager = await isGroupManager(auth);
 
     if (req.method === "POST") {
       const body = await readJsonBody(req);
@@ -188,7 +191,7 @@ export default async function handler(req, res) {
           return;
         }
       } else {
-        if (!canManageAsSuperintendent) {
+        if (!canManageAsGroupManager) {
           res.status(403).json({ error: "Forbidden" });
           return;
         }
@@ -262,7 +265,7 @@ export default async function handler(req, res) {
           return;
         }
       } else {
-        if (!canManageAsSuperintendent) {
+        if (!canManageAsGroupManager) {
           res.status(403).json({ error: "Forbidden" });
           return;
         }
@@ -316,7 +319,7 @@ export default async function handler(req, res) {
           RETURNING id;
         `;
       } else {
-        if (!canManageAsSuperintendent) {
+        if (!canManageAsGroupManager) {
           res.status(403).json({ error: "Forbidden" });
           return;
         }
