@@ -45,10 +45,32 @@ body {
 
 .header-greeting {
   flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   text-align: left;
   font-size: 0.95rem;
   font-weight: 600;
   color: #e2e8f0;
+  min-width: 0;
+}
+
+.header-greeting-icon {
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fbbf24;
+  flex-shrink: 0;
+}
+
+.header-greeting-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.header-greeting-text {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -111,10 +133,25 @@ body {
   border: 1px solid rgba(248, 113, 113, 0.5);
   color: #fca5a5;
   border-radius: 8px;
+  gap: 8px;
   cursor: pointer;
   font-family: inherit;
   transition: background 0.2s ease, border-color 0.2s ease;
   margin-top: 0;
+}
+
+.header-item-icon {
+  width: 15px;
+  height: 15px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.header-item-icon svg {
+  width: 100%;
+  height: 100%;
 }
 
 .header-button:hover {
@@ -307,6 +344,27 @@ body {
   border-color: rgba(99, 102, 241, 0.75);
   background: rgba(99, 102, 241, 0.16);
   transform: translateY(-1px);
+}
+
+.group-selector-card-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.group-selector-card-icon {
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #818cf8;
+  flex-shrink: 0;
+}
+
+.group-selector-card-icon svg {
+  width: 100%;
+  height: 100%;
 }
 
 .group-selector-card-number {
@@ -631,12 +689,41 @@ input:disabled {
 }
 
 .closed-period-month {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-weight: 600;
 }
 
 .closed-period-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 0.85rem;
   color: #94a3b8;
+}
+
+.closed-period-icon {
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #818cf8;
+  flex-shrink: 0;
+}
+
+.closed-period-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.closed-period-icon.status-open {
+  color: #22c55e;
+}
+
+.closed-period-icon.status-completed {
+  color: #f59e0b;
 }
 
 .admin-detail {
@@ -1273,6 +1360,10 @@ input:disabled {
   color: #1e293b;
 }
 
+:root[data-theme="light"] .header-greeting-icon {
+  color: #d97706;
+}
+
 :root[data-theme="light"] .header-link:hover {
   border-bottom-color: rgba(99, 102, 241, 0.7);
   background: transparent;
@@ -1421,6 +1512,10 @@ input:disabled {
   color: #475569;
 }
 
+:root[data-theme="light"] .group-selector-card-icon {
+  color: #4f46e5;
+}
+
 :root[data-theme="light"] .closed-period-item.active {
   background: rgba(99, 102, 241, 0.1);
 }
@@ -1429,6 +1524,10 @@ input:disabled {
 :root[data-theme="light"] .closed-periods-subtitle,
 :root[data-theme="light"] .table-preview-tag {
   color: #475569;
+}
+
+:root[data-theme="light"] .closed-period-icon {
+  color: #4f46e5;
 }
 
 :root[data-theme="light"] .table-preview-tag {

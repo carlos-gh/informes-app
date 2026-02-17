@@ -66,6 +66,52 @@ ChartJS.register(
 const CLOSED_PERIODS_SKELETON_ITEMS = Array.from({ length: 3 }, (_, index) => index);
 const OPEN_PERIODS_SKELETON_ITEMS = Array.from({ length: 2 }, (_, index) => index);
 
+const CalendarIcon = () => {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path
+        d="M7 2v3M17 2v3M4 9h16M5 5h14a1 1 0 0 1 1 1v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a1 1 0 0 1 1-1Z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+};
+
+const OpenLockIcon = () => {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path
+        d="M7 11V8a5 5 0 0 1 9.5-2M6 11h11a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1Z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+};
+
+const CheckCircleIcon = () => {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="1.8" />
+      <path
+        d="m8 12 2.5 2.5L16 9"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+};
+
 export default function AdminView({ authToken, authUser, onLogout }) {
   const navigate = useNavigate();
   const { monthKey: routeMonthKey = "" } = useParams();
@@ -1360,12 +1406,22 @@ export default function AdminView({ authToken, authUser, onLogout }) {
                         selectMonth(period.reportMonthKey, { openDetail: true })
                       }
                     >
-                      <span className="closed-period-month">{period.reportMonthLabel}</span>
+                      <span className="closed-period-month">
+                        <span className="closed-period-icon" aria-hidden="true">
+                          <CalendarIcon />
+                        </span>
+                        <span>{period.reportMonthLabel}</span>
+                      </span>
                       <span className="closed-period-meta">
                         Informes: {period.totalReports} · Horas: {period.totalHours} · Cursos:{" "}
                         {period.totalCourses}
                       </span>
-                      <span className="closed-period-meta">Estado: abierto</span>
+                      <span className="closed-period-meta">
+                        <span className="closed-period-icon status-open" aria-hidden="true">
+                          <OpenLockIcon />
+                        </span>
+                        <span>Estado: abierto</span>
+                      </span>
                     </button>
                   ))
                 : null}
@@ -1411,13 +1467,21 @@ export default function AdminView({ authToken, authUser, onLogout }) {
                         selectMonth(period.reportMonthKey, { openDetail: true })
                       }
                     >
-                      <span className="closed-period-month">{period.reportMonthLabel}</span>
+                      <span className="closed-period-month">
+                        <span className="closed-period-icon" aria-hidden="true">
+                          <CalendarIcon />
+                        </span>
+                        <span>{period.reportMonthLabel}</span>
+                      </span>
                       <span className="closed-period-meta">
                         Informes: {period.totalReports} · Horas: {period.totalHours} · Cursos:{" "}
                         {period.totalCourses}
                       </span>
                       <span className="closed-period-meta">
-                        Completado: {formatDateTime(period.closedAt)}
+                        <span className="closed-period-icon status-completed" aria-hidden="true">
+                          <CheckCircleIcon />
+                        </span>
+                        <span>Completado: {formatDateTime(period.closedAt)}</span>
                       </span>
                     </button>
                   ))
