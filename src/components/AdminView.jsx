@@ -33,6 +33,26 @@ const buildDefaultAdminForm = (defaultMonthKey, defaultGroupNumber = "") => ({
   comments: "",
 });
 
+const isValidGroupNumberValue = (value) => {
+  const normalized = Number(value);
+
+  return Number.isInteger(normalized) && normalized > 0;
+};
+
+const hasMissingGroupValue = (value) => {
+  if (value === null || value === undefined) {
+    return true;
+  }
+
+  const rawValue = String(value).trim();
+
+  if (!rawValue) {
+    return true;
+  }
+
+  return !isValidGroupNumberValue(rawValue);
+};
+
 ChartJS.register(
   CategoryScale,
   LinearScale,
@@ -85,6 +105,9 @@ export default function AdminView({ authToken, authUser, onLogout }) {
 
     return authUser?.groupNumber ? String(authUser.groupNumber) : "";
   }, [authUser?.groupNumber, isSuperAdmin]);
+  const hasUngroupedReports = useMemo(() => {
+    return reports.some((report) => hasMissingGroupValue(report.groupNumber));
+  }, [reports]);
 
   const availableGroupNumbers = useMemo(() => {
     const groupSet = new Set();
@@ -123,11 +146,35 @@ export default function AdminView({ authToken, authUser, onLogout }) {
 
     return Array.from(groupSet).sort((a, b) => a - b);
   }, [defaultAdminGroupNumber, groups, periods, reports]);
+  const activeGroupIsUngrouped = useMemo(() => {
+    if (!isSuperAdmin) {
+      return false;
+    }
+
+    if (selectedGroupNumber === "ungrouped") {
+      return hasUngroupedReports;
+    }
+
+    if (!selectedGroupNumber && 0 === availableGroupNumbers.length && hasUngroupedReports) {
+      return true;
+    }
+
+    return false;
+  }, [
+    availableGroupNumbers.length,
+    hasUngroupedReports,
+    isSuperAdmin,
+    selectedGroupNumber,
+  ]);
 
   const activeGroupNumber = useMemo(() => {
     if (!isSuperAdmin) {
       const ownGroup = Number(defaultAdminGroupNumber);
       return Number.isInteger(ownGroup) && ownGroup > 0 ? ownGroup : null;
+    }
+
+    if (activeGroupIsUngrouped) {
+      return null;
     }
 
     const selectedValue = Number(selectedGroupNumber);
@@ -142,6 +189,7 @@ export default function AdminView({ authToken, authUser, onLogout }) {
 
     return availableGroupNumbers[0] || null;
   }, [
+    activeGroupIsUngrouped,
     availableGroupNumbers,
     defaultAdminGroupNumber,
     isSuperAdmin,
@@ -149,6 +197,10 @@ export default function AdminView({ authToken, authUser, onLogout }) {
   ]);
 
   const activeGroupLabel = useMemo(() => {
+    if (activeGroupIsUngrouped) {
+      return "Sin grupo";
+    }
+
     if (activeGroupNumber === null) {
       return "Sin grupo";
     }
@@ -158,9 +210,13 @@ export default function AdminView({ authToken, authUser, onLogout }) {
     );
 
     return matchedGroup?.name || `Grupo ${activeGroupNumber}`;
-  }, [activeGroupNumber, groups]);
+  }, [activeGroupIsUngrouped, activeGroupNumber, groups]);
 
   const reportsForActiveGroup = useMemo(() => {
+    if (activeGroupIsUngrouped) {
+      return reports.filter((report) => hasMissingGroupValue(report.groupNumber));
+    }
+
     if (activeGroupNumber === null) {
       return [];
     }
@@ -168,10 +224,10 @@ export default function AdminView({ authToken, authUser, onLogout }) {
     return reports.filter(
       (report) => Number(report.groupNumber) === Number(activeGroupNumber)
     );
-  }, [activeGroupNumber, reports]);
+  }, [activeGroupIsUngrouped, activeGroupNumber, reports]);
 
   const closedPeriods = useMemo(() => {
-    if (activeGroupNumber === null) {
+    if (activeGroupIsUngrouped || activeGroupNumber === null) {
       return [];
     }
 
@@ -182,7 +238,7 @@ export default function AdminView({ authToken, authUser, onLogout }) {
           Number(period.groupNumber) === Number(activeGroupNumber)
       )
       .sort((a, b) => b.reportMonthKey.localeCompare(a.reportMonthKey));
-  }, [activeGroupNumber, periods]);
+  }, [activeGroupIsUngrouped, activeGroupNumber, periods]);
 
   const closedMonthKeys = useMemo(() => {
     return closedPeriods.map((period) => period.reportMonthKey).filter(Boolean);
@@ -221,12 +277,12 @@ export default function AdminView({ authToken, authUser, onLogout }) {
   }, [activeMonthKey, closedMonthKeySet]);
 
   const peopleForActiveGroup = useMemo(() => {
-    if (activeGroupNumber === null) {
+    if (activeGroupIsUngrouped || activeGroupNumber === null) {
       return [];
     }
 
     return people.filter((person) => Number(person.groupNumber) === Number(activeGroupNumber));
-  }, [activeGroupNumber, people]);
+  }, [activeGroupIsUngrouped, activeGroupNumber, people]);
 
   const reportSummaryByMonth = useMemo(() => {
     const summary = new Map();
@@ -370,6 +426,12 @@ export default function AdminView({ authToken, authUser, onLogout }) {
   };
 
   const openNewModal = () => {
+    if (activeGroupIsUngrouped) {
+      setSubmitStatus("error");
+      setSubmitMessage("Los informes sin grupo son solo de consulta.");
+      return;
+    }
+
     if (activeGroupNumber === null) {
       setSubmitStatus("error");
       setSubmitMessage("Seleccione un grupo para agregar informes.");
@@ -560,12 +622,33 @@ export default function AdminView({ authToken, authUser, onLogout }) {
       return;
     }
 
-    if (!selectedGroupNumber && availableGroupNumbers.length > 0) {
+    if (selectedGroupNumber === "ungrouped") {
+      if (hasUngroupedReports) {
+        return;
+      }
+    } else if (isValidGroupNumberValue(selectedGroupNumber)) {
+      if (availableGroupNumbers.includes(Number(selectedGroupNumber))) {
+        return;
+      }
+    }
+
+    if (availableGroupNumbers.length > 0) {
       setSelectedGroupNumber(String(availableGroupNumbers[0]));
+      return;
+    }
+
+    if (hasUngroupedReports) {
+      setSelectedGroupNumber("ungrouped");
+      return;
+    }
+
+    if (selectedGroupNumber !== "") {
+      setSelectedGroupNumber("");
     }
   }, [
     availableGroupNumbers,
     defaultAdminGroupNumber,
+    hasUngroupedReports,
     isSuperAdmin,
     selectedGroupNumber,
   ]);
@@ -762,6 +845,10 @@ export default function AdminView({ authToken, authUser, onLogout }) {
   const shouldValidatePendingPeople = activeMonthKey === defaultMonthKey;
 
   const closePeriodBlockReason = useMemo(() => {
+    if (activeGroupIsUngrouped) {
+      return "Los informes sin grupo no admiten cierre de periodo.";
+    }
+
     if (activeGroupNumber === null) {
       return "Seleccione un grupo para gestionar periodos.";
     }
@@ -790,6 +877,7 @@ export default function AdminView({ authToken, authUser, onLogout }) {
 
     return "";
   }, [
+    activeGroupIsUngrouped,
     activeGroupNumber,
     defaultMonthKey,
     filteredReports.length,
@@ -803,6 +891,10 @@ export default function AdminView({ authToken, authUser, onLogout }) {
 
   const canClosePeriod = "" === closePeriodBlockReason;
   const reopenPeriodBlockReason = useMemo(() => {
+    if (activeGroupIsUngrouped) {
+      return "Los informes sin grupo no admiten reapertura de periodo.";
+    }
+
     if (activeGroupNumber === null) {
       return "Seleccione un grupo para gestionar periodos.";
     }
@@ -812,7 +904,7 @@ export default function AdminView({ authToken, authUser, onLogout }) {
     }
 
     return "";
-  }, [activeGroupNumber, isActiveMonthClosed]);
+  }, [activeGroupIsUngrouped, activeGroupNumber, isActiveMonthClosed]);
   const canReopenPeriod = "" === reopenPeriodBlockReason;
 
   const handleDownloadPdf = () => {
@@ -1071,6 +1163,12 @@ export default function AdminView({ authToken, authUser, onLogout }) {
     event.preventDefault();
     setSubmitMessage("");
 
+    if (activeGroupIsUngrouped) {
+      setSubmitStatus("error");
+      setSubmitMessage("Los informes sin grupo son solo de consulta.");
+      return;
+    }
+
     if (activeGroupNumber === null) {
       setSubmitStatus("error");
       setSubmitMessage("Seleccione un grupo para guardar informes.");
@@ -1171,11 +1269,20 @@ export default function AdminView({ authToken, authUser, onLogout }) {
             <select
               id="admin-group-context"
               name="admin-group-context"
-              value={activeGroupNumber !== null ? String(activeGroupNumber) : ""}
+              value={
+                activeGroupIsUngrouped
+                  ? "ungrouped"
+                  : activeGroupNumber !== null
+                  ? String(activeGroupNumber)
+                  : ""
+              }
               onChange={(event) => setSelectedGroupNumber(event.target.value)}
             >
-              {availableGroupNumbers.length === 0 ? (
+              {availableGroupNumbers.length === 0 && !hasUngroupedReports ? (
                 <option value="">Sin grupos disponibles</option>
+              ) : null}
+              {hasUngroupedReports ? (
+                <option value="ungrouped">Sin grupo</option>
               ) : null}
               {availableGroupNumbers.map((groupNumber) => {
                 const matchedGroup = groups.find(
@@ -1740,7 +1847,7 @@ export default function AdminView({ authToken, authUser, onLogout }) {
             activeMonthLabel={activeMonthLabel}
             canClosePeriod={canClosePeriod}
             canReopenPeriod={canReopenPeriod}
-            canDownloadPdf={activeGroupNumber !== null && filteredReports.length > 0}
+            canDownloadPdf={filteredReports.length > 0}
             closePeriodBlockReason={closePeriodBlockReason}
             reopenPeriodBlockReason={reopenPeriodBlockReason}
             filteredReports={filteredReports}

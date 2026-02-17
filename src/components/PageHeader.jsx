@@ -24,7 +24,7 @@ export default function PageHeader({
     return "Buenas noches";
   })();
   const greetingMessage = displayName
-    ? `${greetingPrefix} ${displayName}!`
+    ? `${greetingPrefix}, ${displayName}!`
     : `${greetingPrefix}!`;
 
   const toggleMenu = () => {
