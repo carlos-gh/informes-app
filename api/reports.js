@@ -242,6 +242,52 @@ export default async function handler(req, res) {
         return;
       }
 
+      if ("reopenPeriod" === action) {
+        if (!auth) {
+          res.status(401).json({ error: "Unauthorized" });
+          return;
+        }
+
+        const reportMonthKey = String(body.reportMonthKey || "").trim();
+        const reportMonthLabel = getReportMonthLabel(reportMonthKey);
+
+        if (!reportMonthLabel) {
+          res.status(400).json({ error: "Invalid report month" });
+          return;
+        }
+
+        try {
+          await ensureReportSchema();
+
+          const periodResult = await sql`
+            SELECT
+              is_closed AS "isClosed"
+            FROM report_periods
+            WHERE report_month_key = ${reportMonthKey}
+            LIMIT 1;
+          `;
+
+          if (true !== Boolean(periodResult.rows[0]?.isClosed)) {
+            res.status(400).json({ error: "Report period is already open" });
+            return;
+          }
+
+          await sql`
+            UPDATE report_periods
+            SET
+              report_month_label = ${reportMonthLabel},
+              is_closed = FALSE,
+              closed_at = NULL
+            WHERE report_month_key = ${reportMonthKey};
+          `;
+
+          res.status(200).json({ ok: true, reportMonthKey });
+        } catch (error) {
+          res.status(500).json({ error: "Database error", detail: String(error) });
+        }
+        return;
+      }
+
       const name = String(body.name || "").trim();
       const participation = String(body.participation || "").trim();
       const designation = String(body.designation || "").trim() || "Publicador";

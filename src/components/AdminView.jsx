@@ -284,6 +284,10 @@ export default function AdminView({ authToken, onLogout }) {
         return "No se puede cerrar un periodo sin informes.";
       }
 
+      if ("Report period is already open" === apiError) {
+        return "Este periodo ya está abierto.";
+      }
+
       return apiError || fallbackMessage;
     } catch (error) {
       return fallbackMessage;
@@ -458,6 +462,63 @@ export default function AdminView({ authToken, onLogout }) {
     }
   };
 
+  const handleReopenPeriod = async () => {
+    if (!canReopenPeriod) {
+      setSubmitStatus("error");
+      setSubmitMessage(
+        reopenPeriodBlockReason || "No se puede reabrir el periodo seleccionado."
+      );
+      return;
+    }
+
+    if (
+      !window.confirm(
+        `¿Desea reabrir el periodo de ${activeMonthLabel}? El mes volverá a estar habilitado para edición.`
+      )
+    ) {
+      return;
+    }
+
+    setSubmitMessage("");
+    setSubmitStatus("loading");
+
+    try {
+      const response = await fetch("/api/reports", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          action: "reopenPeriod",
+          reportMonthKey: activeMonthKey,
+        }),
+      });
+
+      if (response.status === 401) {
+        onLogout();
+        setSubmitStatus("error");
+        setSubmitMessage("Su sesión expiró. Inicie sesión de nuevo.");
+        return;
+      }
+
+      if (!response.ok) {
+        const errorMessage = await getErrorMessageFromResponse(
+          response,
+          "No se pudo reabrir el periodo."
+        );
+        throw new Error(errorMessage);
+      }
+
+      setSubmitStatus("success");
+      setSubmitMessage("Periodo reabierto correctamente. Ya puede editar registros.");
+      await loadReports();
+    } catch (error) {
+      setSubmitStatus("error");
+      setSubmitMessage(String(error.message || "No se pudo reabrir el periodo."));
+    }
+  };
+
   const normalizeName = (value) => {
     return value
       .normalize("NFD")
@@ -516,6 +577,18 @@ export default function AdminView({ authToken, onLogout }) {
   ]);
 
   const canClosePeriod = "" === closePeriodBlockReason;
+  const reopenPeriodBlockReason = useMemo(() => {
+    if (!isActiveMonthClosed) {
+      return "Este periodo ya está abierto.";
+    }
+
+    if (activeMonthKey !== defaultMonthKey) {
+      return "Solo puede reabrir el periodo del mes actual.";
+    }
+
+    return "";
+  }, [activeMonthKey, defaultMonthKey, isActiveMonthClosed]);
+  const canReopenPeriod = "" === reopenPeriodBlockReason;
 
   const handleDownloadPdf = () => {
     const monthKey = defaultMonthKey;
@@ -1327,8 +1400,10 @@ export default function AdminView({ authToken, onLogout }) {
           <AdminMonthDetailView
             activeMonthLabel={activeMonthLabel}
             canClosePeriod={canClosePeriod}
+            canReopenPeriod={canReopenPeriod}
             canDownloadPdf={activeMonthKey === defaultMonthKey}
             closePeriodBlockReason={closePeriodBlockReason}
+            reopenPeriodBlockReason={reopenPeriodBlockReason}
             filteredReports={filteredReports}
             isActiveMonthClosed={isActiveMonthClosed}
             isSubmitting={submitStatus === "loading"}
@@ -1336,6 +1411,7 @@ export default function AdminView({ authToken, onLogout }) {
             loadError={loadError}
             onBack={handleBackToOverview}
             onClosePeriod={handleClosePeriod}
+            onReopenPeriod={handleReopenPeriod}
             onDelete={handleDelete}
             onDownloadPdf={handleDownloadPdf}
             onEdit={handleEdit}

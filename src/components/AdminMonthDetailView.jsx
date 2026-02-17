@@ -17,8 +17,10 @@ const ADMIN_TABLE_SKELETON_COLUMNS = [
 export default function AdminMonthDetailView({
   activeMonthLabel,
   canClosePeriod,
+  canReopenPeriod,
   canDownloadPdf,
   closePeriodBlockReason,
+  reopenPeriodBlockReason,
   filteredReports,
   isActiveMonthClosed,
   isSubmitting,
@@ -26,6 +28,7 @@ export default function AdminMonthDetailView({
   loadError,
   onBack,
   onClosePeriod,
+  onReopenPeriod,
   onEdit,
   onDelete,
   onDownloadPdf,
@@ -57,11 +60,19 @@ export default function AdminMonthDetailView({
           <button
             className="secondary-button"
             type="button"
-            onClick={onClosePeriod}
-            disabled={!canClosePeriod || isSubmitting}
-            title={closePeriodBlockReason || undefined}
+            onClick={isActiveMonthClosed ? onReopenPeriod : onClosePeriod}
+            disabled={
+              isActiveMonthClosed
+                ? !canReopenPeriod || isSubmitting
+                : !canClosePeriod || isSubmitting
+            }
+            title={
+              isActiveMonthClosed
+                ? reopenPeriodBlockReason || undefined
+                : closePeriodBlockReason || undefined
+            }
           >
-            Cerrar periodo
+            {isActiveMonthClosed ? "Reabrir periodo" : "Cerrar periodo"}
           </button>
           <button className="secondary-button" type="button" onClick={onOpenPending}>
             Pendientes
