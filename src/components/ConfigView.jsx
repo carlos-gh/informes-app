@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { formatDateTime } from "../utils/reporting.js";
 
 const buildDefaultPersonForm = () => ({
   name: "",
@@ -30,6 +31,50 @@ const GROUP_TABLE_SKELETON_COLUMNS = [
   "skeleton-md",
   "skeleton-md",
 ];
+
+const ACTIVITY_TABLE_SKELETON_ROWS = Array.from({ length: 5 }, (_, index) => index);
+const ACTIVITY_TABLE_SKELETON_COLUMNS = [
+  "skeleton-xs",
+  "skeleton-md",
+  "skeleton-lg",
+  "skeleton-sm",
+  "skeleton-sm",
+  "skeleton-md",
+];
+
+const getActivityDetailLabel = (detail) => {
+  const value = String(detail || "").trim();
+
+  if ("success" === value) {
+    return "Inicio de sesión correcto.";
+  }
+
+  if ("invalid_credentials" === value) {
+    return "Credenciales inválidas.";
+  }
+
+  if ("captcha_invalid" === value) {
+    return "Captcha inválido.";
+  }
+
+  if ("invalid_payload" === value) {
+    return "Solicitud inválida.";
+  }
+
+  if ("captcha_missing_secret" === value) {
+    return "Captcha no configurado en el servidor.";
+  }
+
+  if ("token_secret_missing" === value) {
+    return "Token de sesión no configurado.";
+  }
+
+  if ("authentication_error" === value) {
+    return "Error interno de autenticación.";
+  }
+
+  return value || "-";
+};
 
 const getErrorMessageFromResponse = async (response, fallbackMessage) => {
   try {
@@ -67,6 +112,9 @@ export default function ConfigView({
   const [groupFormErrors, setGroupFormErrors] = useState({});
   const [groupSubmitStatus, setGroupSubmitStatus] = useState("idle");
   const [groupSubmitMessage, setGroupSubmitMessage] = useState("");
+  const [activityItems, setActivityItems] = useState([]);
+  const [isActivityLoading, setIsActivityLoading] = useState(false);
+  const [activityLoadError, setActivityLoadError] = useState("");
 
   const isAuthenticated = Boolean(authToken);
   const isSuperAdmin = true === Boolean(authUser?.isSuperAdmin);
@@ -166,9 +214,53 @@ export default function ConfigView({
     }
   };
 
+  const loadActivity = async () => {
+    if (!isAuthenticated || !isSuperAdmin) {
+      setActivityItems([]);
+      setIsActivityLoading(false);
+      setActivityLoadError("");
+      return;
+    }
+
+    setIsActivityLoading(true);
+    setActivityLoadError("");
+
+    try {
+      const response = await fetch("/api/auth/activity?limit=50", {
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+        },
+      });
+
+      if (response.status === 401) {
+        onLogout();
+        setActivityLoadError("Su sesión expiró. Inicie sesión de nuevo.");
+        return;
+      }
+
+      if (response.status === 403) {
+        setActivityItems([]);
+        setActivityLoadError("No tiene permisos para ver la actividad.");
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error("Failed to load activity");
+      }
+
+      const data = await response.json();
+      setActivityItems(data.items || []);
+    } catch (error) {
+      setActivityLoadError("No se pudo cargar la actividad de usuarios.");
+    } finally {
+      setIsActivityLoading(false);
+    }
+  };
+
   useEffect(() => {
     loadPeople();
     loadGroups();
+    loadActivity();
   }, [authToken, canManagePeople, isSuperAdmin]);
 
   const resetForm = () => {
@@ -603,6 +695,84 @@ export default function ConfigView({
               {groupSubmitMessage}
             </div>
           ) : null}
+        </section>
+      ) : null}
+
+      {isSuperAdmin ? (
+        <section className="config-people">
+          <div className="config-section-head">
+            <div>
+              <h2 className="config-section-title">Actividad de accesos</h2>
+              <p className="config-section-description">
+                Supervise inicios de sesión recientes para detectar actividad sospechosa.
+              </p>
+            </div>
+            <div className="config-section-actions">
+              <span className="config-total">Total: {activityItems.length}</span>
+            </div>
+          </div>
+
+          <div className="table-wrapper">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>No.</th>
+                  <th>Fecha</th>
+                  <th>Usuario</th>
+                  <th>Resultado</th>
+                  <th>Detalle</th>
+                  <th>IP</th>
+                </tr>
+              </thead>
+              <tbody>
+                {isActivityLoading
+                  ? ACTIVITY_TABLE_SKELETON_ROWS.map((rowIndex) => (
+                      <tr key={`activity-skeleton-${rowIndex}`} className="table-skeleton">
+                        {ACTIVITY_TABLE_SKELETON_COLUMNS.map((size, cellIndex) => (
+                          <td key={`activity-skeleton-cell-${rowIndex}-${cellIndex}`}>
+                            <span className={`skeleton-line ${size}`} />
+                          </td>
+                        ))}
+                      </tr>
+                    ))
+                  : null}
+                {!isActivityLoading && activityLoadError ? (
+                  <tr>
+                    <td colSpan={6}>{activityLoadError}</td>
+                  </tr>
+                ) : null}
+                {!isActivityLoading && !activityLoadError && activityItems.length === 0 ? (
+                  <tr>
+                    <td colSpan={6}>No hay eventos de acceso registrados.</td>
+                  </tr>
+                ) : null}
+                {!isActivityLoading &&
+                  !activityLoadError &&
+                  activityItems.map((item, index) => {
+                    const username = String(
+                      item.resolvedUsername || item.username || "Usuario desconocido"
+                    ).trim();
+                    const fullName = String(item.fullName || "").trim();
+                    const displayUser = fullName ? `${fullName} (${username})` : username;
+
+                    return (
+                      <tr key={item.id || `${item.createdAt}-${index}`}>
+                        <td>{index + 1}</td>
+                        <td>{formatDateTime(item.createdAt) || "-"}</td>
+                        <td>{displayUser}</td>
+                        <td>
+                          {"login_success" === item.eventType
+                            ? "Acceso correcto"
+                            : "Acceso fallido"}
+                        </td>
+                        <td>{getActivityDetailLabel(item.detail)}</td>
+                        <td>{item.ipAddress || "-"}</td>
+                      </tr>
+                    );
+                  })}
+              </tbody>
+            </table>
+          </div>
         </section>
       ) : null}
 

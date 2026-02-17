@@ -16,6 +16,8 @@ const FULL_NAME_MAX_LENGTH = 100;
 
 const ROLE_SUPERADMIN = "superadmin";
 const ROLE_GROUP_ADMIN = "group_admin";
+const AUTH_ACTIVITY_EVENT_LOGIN_SUCCESS = "login_success";
+const AUTH_ACTIVITY_EVENT_LOGIN_FAILURE = "login_failure";
 
 const getTokenSecret = () => {
   return process.env.ADMIN_TOKEN_SECRET || "";
@@ -23,6 +25,22 @@ const getTokenSecret = () => {
 
 const normalizeUsername = (value) => {
   return String(value || "").trim().toLowerCase();
+};
+
+const normalizeLogValue = (value, maxLength) => {
+  const normalized = String(value || "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!normalized) {
+    return "";
+  }
+
+  if (!Number.isInteger(maxLength) || maxLength < 1) {
+    return normalized;
+  }
+
+  return normalized.slice(0, maxLength);
 };
 
 const safeEqual = (valueA, valueB) => {
@@ -185,6 +203,19 @@ export const ensureIdentitySchema = async () => {
     );
   `;
 
+  await sql`
+    CREATE TABLE IF NOT EXISTS auth_activity (
+      id SERIAL PRIMARY KEY,
+      event_type TEXT NOT NULL,
+      user_id INTEGER,
+      username TEXT,
+      ip_address TEXT,
+      user_agent TEXT,
+      detail TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `;
+
   await sql`ALTER TABLE groups ADD COLUMN IF NOT EXISTS group_number INTEGER;`;
   await sql`ALTER TABLE groups ADD COLUMN IF NOT EXISTS name TEXT;`;
   await sql`ALTER TABLE groups ADD COLUMN IF NOT EXISTS superintendent_user_id INTEGER;`;
@@ -199,6 +230,13 @@ export const ensureIdentitySchema = async () => {
   await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE;`;
   await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW();`;
   await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();`;
+  await sql`ALTER TABLE auth_activity ADD COLUMN IF NOT EXISTS event_type TEXT;`;
+  await sql`ALTER TABLE auth_activity ADD COLUMN IF NOT EXISTS user_id INTEGER;`;
+  await sql`ALTER TABLE auth_activity ADD COLUMN IF NOT EXISTS username TEXT;`;
+  await sql`ALTER TABLE auth_activity ADD COLUMN IF NOT EXISTS ip_address TEXT;`;
+  await sql`ALTER TABLE auth_activity ADD COLUMN IF NOT EXISTS user_agent TEXT;`;
+  await sql`ALTER TABLE auth_activity ADD COLUMN IF NOT EXISTS detail TEXT;`;
+  await sql`ALTER TABLE auth_activity ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW();`;
 
   await sql`ALTER TABLE users ALTER COLUMN role SET DEFAULT 'group_admin';`;
   await sql`ALTER TABLE users ALTER COLUMN is_active SET DEFAULT TRUE;`;
@@ -211,6 +249,8 @@ export const ensureIdentitySchema = async () => {
   await sql`UPDATE users SET updated_at = NOW() WHERE updated_at IS NULL;`;
   await sql`CREATE UNIQUE INDEX IF NOT EXISTS users_username_unique_idx ON users (username);`;
   await sql`CREATE UNIQUE INDEX IF NOT EXISTS groups_group_number_unique_idx ON groups (group_number);`;
+  await sql`CREATE INDEX IF NOT EXISTS auth_activity_created_at_idx ON auth_activity (created_at DESC);`;
+  await sql`CREATE INDEX IF NOT EXISTS auth_activity_user_id_idx ON auth_activity (user_id);`;
 };
 
 const bootstrapSuperAdmin = async () => {
@@ -473,6 +513,46 @@ export const getSafeAuthUser = (authPayload) => {
         : Number(authPayload.groupNumber),
     isSuperAdmin: isSuperAdmin(authPayload),
   };
+};
+
+export const logAuthActivity = async ({
+  eventType,
+  userId,
+  username,
+  ipAddress,
+  userAgent,
+  detail,
+} = {}) => {
+  const normalizedEventType =
+    eventType === AUTH_ACTIVITY_EVENT_LOGIN_SUCCESS
+      ? AUTH_ACTIVITY_EVENT_LOGIN_SUCCESS
+      : AUTH_ACTIVITY_EVENT_LOGIN_FAILURE;
+  const userIdValue = Number(userId);
+  const normalizedUserId =
+    Number.isInteger(userIdValue) && userIdValue > 0 ? userIdValue : null;
+  const normalizedUsername = normalizeLogValue(normalizeUsername(username), 64);
+  const normalizedIpAddress = normalizeLogValue(ipAddress, 64);
+  const normalizedUserAgent = normalizeLogValue(userAgent, 255);
+  const normalizedDetail = normalizeLogValue(detail, 120);
+
+  await sql`
+    INSERT INTO auth_activity (
+      event_type,
+      user_id,
+      username,
+      ip_address,
+      user_agent,
+      detail
+    )
+    VALUES (
+      ${normalizedEventType},
+      ${normalizedUserId},
+      ${normalizedUsername},
+      ${normalizedIpAddress},
+      ${normalizedUserAgent},
+      ${normalizedDetail}
+    );
+  `;
 };
 
 export const ROLE_NAMES = {
