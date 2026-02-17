@@ -1366,7 +1366,7 @@ export default function AdminView({ authToken, authUser, onLogout }) {
         <>
           <section className="closed-periods">
             <div className="closed-periods-header">
-              <h2 className="closed-periods-title">Periodos abiertos</h2>
+              <h2 className="closed-periods-title">Periodo abierto</h2>
               {isLoading || 0 < openPeriodSummaries.length ? (
                 <p className="closed-periods-subtitle">
                   {activeGroupLabel}: seleccione un periodo abierto para registrar o editar
@@ -1390,7 +1390,7 @@ export default function AdminView({ authToken, authUser, onLogout }) {
               {!isLoading && 0 === openPeriodSummaries.length ? (
                 <div className="closed-period-item closed-period-item-skeleton">
                   <span className="closed-period-meta">
-                    No hay periodos abiertos. Esperando el próximo periodo.
+                    No hay periodo abierto.
                   </span>
                 </div>
               ) : null}
