@@ -98,6 +98,7 @@ export default function AdminView({ authToken, authUser, onLogout }) {
 
   const isAuthenticated = Boolean(authToken);
   const isSuperAdmin = true === Boolean(authUser?.isSuperAdmin);
+  const canReassignGroupOnEdit = isSuperAdmin && editingId !== null;
   const defaultAdminGroupNumber = useMemo(() => {
     if (isSuperAdmin) {
       return "";
@@ -480,7 +481,15 @@ export default function AdminView({ authToken, authUser, onLogout }) {
       nextErrors.courses = "Ingrese un número válido.";
     }
 
-    if (activeGroupNumber === null) {
+    if (canReassignGroupOnEdit) {
+      if (
+        adminForm.groupNumber === "" ||
+        Number.isNaN(Number(adminForm.groupNumber)) ||
+        Number(adminForm.groupNumber) < 1
+      ) {
+        nextErrors.groupNumber = "Seleccione un grupo válido.";
+      }
+    } else if (activeGroupNumber === null) {
       nextErrors.groupNumber = "Seleccione un grupo válido.";
     }
 
@@ -1163,13 +1172,13 @@ export default function AdminView({ authToken, authUser, onLogout }) {
     event.preventDefault();
     setSubmitMessage("");
 
-    if (activeGroupIsUngrouped) {
+    if (activeGroupIsUngrouped && !canReassignGroupOnEdit) {
       setSubmitStatus("error");
       setSubmitMessage("Los informes sin grupo son solo de consulta.");
       return;
     }
 
-    if (activeGroupNumber === null) {
+    if (activeGroupNumber === null && !canReassignGroupOnEdit) {
       setSubmitStatus("error");
       setSubmitMessage("Seleccione un grupo para guardar informes.");
       return;
@@ -1191,7 +1200,9 @@ export default function AdminView({ authToken, authUser, onLogout }) {
 
     const payload = {
       reportMonthKey: adminForm.reportMonthKey,
-      groupNumber: Number(activeGroupNumber),
+      groupNumber: canReassignGroupOnEdit
+        ? Number(adminForm.groupNumber)
+        : Number(activeGroupNumber),
       name: adminForm.name.trim(),
       participation: adminForm.participation,
       designation: adminForm.designation,
@@ -1439,15 +1450,48 @@ export default function AdminView({ authToken, authUser, onLogout }) {
                 ) : null}
               </div>
 
-              <input
-                type="hidden"
-                name="admin-group"
-                value={activeGroupNumber !== null ? String(activeGroupNumber) : ""}
-              />
+              {canReassignGroupOnEdit ? (
+                <div className="field">
+                  <label htmlFor="admin-group">
+                    Grupo del registro <span className="required">*</span>
+                  </label>
+                  <select
+                    id="admin-group"
+                    name="admin-group"
+                    value={adminForm.groupNumber}
+                    onChange={(event) =>
+                      updateAdminForm("groupNumber", event.target.value)
+                    }
+                    aria-invalid={Boolean(formErrors.groupNumber)}
+                    aria-describedby={formErrors.groupNumber ? "group-error" : undefined}
+                    required
+                  >
+                    <option value="">Seleccione</option>
+                    {groups.map((group) => (
+                      <option key={group.groupNumber} value={group.groupNumber}>
+                        {group.name || `Grupo ${group.groupNumber}`} (Grupo {group.groupNumber})
+                      </option>
+                    ))}
+                  </select>
+                  {formErrors.groupNumber ? (
+                    <span id="group-error" className="error">
+                      {formErrors.groupNumber}
+                    </span>
+                  ) : null}
+                </div>
+              ) : (
+                <>
+                  <input
+                    type="hidden"
+                    name="admin-group"
+                    value={activeGroupNumber !== null ? String(activeGroupNumber) : ""}
+                  />
 
-              <p className="config-section-description">
-                Grupo asignado: <strong>{activeGroupLabel}</strong>
-              </p>
+                  <p className="config-section-description">
+                    Grupo asignado: <strong>{activeGroupLabel}</strong>
+                  </p>
+                </>
+              )}
 
               <div className="field">
                 <label htmlFor="admin-name">
