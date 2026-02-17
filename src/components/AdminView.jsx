@@ -22,8 +22,9 @@ import {
   isNumericValue,
 } from "../utils/reporting.js";
 
-const buildDefaultAdminForm = (defaultMonthKey) => ({
+const buildDefaultAdminForm = (defaultMonthKey, defaultGroupNumber = "") => ({
   reportMonthKey: defaultMonthKey,
+  groupNumber: defaultGroupNumber,
   name: "",
   participation: "",
   designation: "Publicador",
@@ -45,7 +46,7 @@ ChartJS.register(
 const CLOSED_PERIODS_SKELETON_ITEMS = Array.from({ length: 3 }, (_, index) => index);
 const OPEN_PERIODS_SKELETON_ITEMS = Array.from({ length: 2 }, (_, index) => index);
 
-export default function AdminView({ authToken, onLogout }) {
+export default function AdminView({ authToken, authUser, onLogout }) {
   const navigate = useNavigate();
   const { monthKey: routeMonthKey = "" } = useParams();
   const isDetailView = Boolean(routeMonthKey);
@@ -68,10 +69,21 @@ export default function AdminView({ authToken, onLogout }) {
   const [statsRange, setStatsRange] = useState(6);
   const [submitStatus, setSubmitStatus] = useState("idle");
   const [submitMessage, setSubmitMessage] = useState("");
-  const [adminForm, setAdminForm] = useState(buildDefaultAdminForm(defaultMonthKey));
+  const [groups, setGroups] = useState([]);
+  const [adminForm, setAdminForm] = useState(() =>
+    buildDefaultAdminForm(defaultMonthKey)
+  );
   const [formErrors, setFormErrors] = useState({});
 
   const isAuthenticated = Boolean(authToken);
+  const isSuperAdmin = true === Boolean(authUser?.isSuperAdmin);
+  const defaultAdminGroupNumber = useMemo(() => {
+    if (isSuperAdmin) {
+      return "";
+    }
+
+    return authUser?.groupNumber ? String(authUser.groupNumber) : "";
+  }, [authUser?.groupNumber, isSuperAdmin]);
 
   const closedPeriods = useMemo(() => {
     return (periods || [])
@@ -248,7 +260,7 @@ export default function AdminView({ authToken, onLogout }) {
   };
 
   const resetAdminForm = (monthKey) => {
-    setAdminForm(buildDefaultAdminForm(monthKey));
+    setAdminForm(buildDefaultAdminForm(monthKey, defaultAdminGroupNumber));
     setEditingId(null);
     setFormErrors({});
   };
@@ -296,6 +308,14 @@ export default function AdminView({ authToken, onLogout }) {
       nextErrors.courses = "Ingrese un número válido.";
     }
 
+    if (
+      adminForm.groupNumber === "" ||
+      Number.isNaN(Number(adminForm.groupNumber)) ||
+      Number(adminForm.groupNumber) < 1
+    ) {
+      nextErrors.groupNumber = "Seleccione un grupo válido.";
+    }
+
     setFormErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
   };
@@ -315,6 +335,10 @@ export default function AdminView({ authToken, onLogout }) {
 
       if ("Report period is already open" === apiError) {
         return "Este periodo ya está abierto.";
+      }
+
+      if ("Forbidden" === apiError) {
+        return "No tiene permisos para realizar esta acción.";
       }
 
       return apiError || fallbackMessage;
@@ -390,10 +414,50 @@ export default function AdminView({ authToken, onLogout }) {
     }
   };
 
+  const loadGroups = async () => {
+    if (!isAuthenticated) {
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/groups", {
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+        },
+      });
+
+      if (response.status === 401) {
+        onLogout();
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error("Failed to load groups");
+      }
+
+      const data = await response.json();
+      setGroups(data.items || []);
+    } catch (error) {
+      setGroups([]);
+    }
+  };
+
   useEffect(() => {
     loadReports();
     loadPeople();
+    loadGroups();
   }, [authToken]);
+
+  useEffect(() => {
+    if (editingId) {
+      return;
+    }
+
+    setAdminForm((previous) => ({
+      ...previous,
+      groupNumber: previous.groupNumber || defaultAdminGroupNumber,
+    }));
+  }, [defaultAdminGroupNumber, editingId]);
 
   useEffect(() => {
     if (!selectedMonthKey || !availableMonthKeys.includes(selectedMonthKey)) {
@@ -568,45 +632,60 @@ export default function AdminView({ authToken, onLogout }) {
       return normalized && !reportedNames.has(normalized);
     });
   }, [filteredReports, people]);
+  const shouldValidatePendingPeople = activeMonthKey === defaultMonthKey;
 
   const closePeriodBlockReason = useMemo(() => {
+    if (!isSuperAdmin) {
+      return "Solo el superadmin puede cerrar periodos.";
+    }
+
     if (isActiveMonthClosed) {
       return "Este periodo ya está completado.";
-    }
-
-    if (pendingError) {
-      return "No se pudo validar la lista de pendientes.";
-    }
-
-    if (0 === people.length) {
-      return "Debe registrar personas para validar pendientes.";
     }
 
     if (0 === filteredReports.length) {
       return "No hay informes cargados para este mes.";
     }
 
-    if (0 < pendingPeople.length) {
-      return "Aún hay personas pendientes por informar.";
+    if (shouldValidatePendingPeople) {
+      if (pendingError) {
+        return "No se pudo validar la lista de pendientes.";
+      }
+
+      if (0 === people.length) {
+        return "Debe registrar personas para validar pendientes.";
+      }
+
+      if (0 < pendingPeople.length) {
+        return "Aún hay personas pendientes por informar.";
+      }
     }
 
     return "";
   }, [
+    defaultMonthKey,
     filteredReports.length,
+    activeMonthKey,
+    isSuperAdmin,
     isActiveMonthClosed,
     pendingError,
     pendingPeople.length,
     people.length,
+    shouldValidatePendingPeople,
   ]);
 
   const canClosePeriod = "" === closePeriodBlockReason;
   const reopenPeriodBlockReason = useMemo(() => {
+    if (!isSuperAdmin) {
+      return "Solo el superadmin puede reabrir periodos.";
+    }
+
     if (!isActiveMonthClosed) {
       return "Este periodo ya está abierto.";
     }
 
     return "";
-  }, [isActiveMonthClosed]);
+  }, [isActiveMonthClosed, isSuperAdmin]);
   const canReopenPeriod = "" === reopenPeriodBlockReason;
 
   const handleDownloadPdf = () => {
@@ -789,6 +868,7 @@ export default function AdminView({ authToken, onLogout }) {
     setEditingId(report.id);
     setAdminForm({
       reportMonthKey: report.reportMonthKey || defaultMonthKey,
+      groupNumber: report.groupNumber ? String(report.groupNumber) : defaultAdminGroupNumber,
       name: report.name || "",
       participation: report.participation || "",
       designation: report.designation || "Publicador",
@@ -869,6 +949,7 @@ export default function AdminView({ authToken, onLogout }) {
 
     const payload = {
       reportMonthKey: adminForm.reportMonthKey,
+      groupNumber: Number(adminForm.groupNumber),
       name: adminForm.name.trim(),
       participation: adminForm.participation,
       designation: adminForm.designation,
@@ -1072,6 +1153,36 @@ export default function AdminView({ authToken, onLogout }) {
                 {formErrors.reportMonthKey ? (
                   <span id="month-error" className="error">
                     {formErrors.reportMonthKey}
+                  </span>
+                ) : null}
+              </div>
+
+              <div className="field">
+                <label htmlFor="admin-group">
+                  Grupo <span className="required">*</span>
+                </label>
+                <select
+                  id="admin-group"
+                  name="admin-group"
+                  value={adminForm.groupNumber}
+                  onChange={(event) =>
+                    updateAdminForm("groupNumber", event.target.value)
+                  }
+                  aria-invalid={Boolean(formErrors.groupNumber)}
+                  aria-describedby={formErrors.groupNumber ? "group-error" : undefined}
+                  disabled={!isSuperAdmin}
+                  required
+                >
+                  <option value="">Seleccione</option>
+                  {groups.map((group) => (
+                    <option key={group.groupNumber} value={group.groupNumber}>
+                      {group.name || `Grupo ${group.groupNumber}`} (Grupo {group.groupNumber})
+                    </option>
+                  ))}
+                </select>
+                {formErrors.groupNumber ? (
+                  <span id="group-error" className="error">
+                    {formErrors.groupNumber}
                   </span>
                 ) : null}
               </div>

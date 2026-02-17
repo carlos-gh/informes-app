@@ -78,7 +78,7 @@ export default function LoginView({ onLogin }) {
         throw new Error("Missing token");
       }
 
-      onLogin(data.token);
+      onLogin({ token: data.token, user: data.user || null });
       setSubmitStatus("success");
       navigate("/admin");
     } catch (error) {

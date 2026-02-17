@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   getMonthNameInSpanish,
   getReportDate,
@@ -7,7 +7,11 @@ import {
   isNumericValue,
 } from "../utils/reporting.js";
 
-export default function ReportFormView({ isAuthenticated = false }) {
+export default function ReportFormView({
+  isAuthenticated = false,
+  authUser = null,
+  authToken = "",
+}) {
   const currentDate = useMemo(() => new Date(), []);
   const reportDate = useMemo(() => getReportDate(currentDate), [currentDate]);
   const reportMonthName = useMemo(
@@ -17,17 +21,73 @@ export default function ReportFormView({ isAuthenticated = false }) {
   const reportMonthKey = useMemo(() => getReportMonthKey(reportDate), [reportDate]);
   const isOpen = useMemo(() => isFormWindowOpen(currentDate), [currentDate]);
   const canSubmit = isOpen || isAuthenticated;
+  const isGroupUser = useMemo(() => {
+    return !authUser?.isSuperAdmin && Boolean(authUser?.groupNumber);
+  }, [authUser?.groupNumber, authUser?.isSuperAdmin]);
+  const defaultGroupNumber = useMemo(() => {
+    if (!isGroupUser) {
+      return "";
+    }
+
+    return String(authUser?.groupNumber || "");
+  }, [authUser?.groupNumber, isGroupUser]);
 
   const [formData, setFormData] = useState({
+    groupNumber: defaultGroupNumber,
     name: "",
     participation: "",
     hours: "",
     courses: "",
     comments: "",
   });
+  const [groups, setGroups] = useState([]);
+  const [groupsLoadError, setGroupsLoadError] = useState("");
   const [formErrors, setFormErrors] = useState({});
   const [submitStatus, setSubmitStatus] = useState("idle");
   const [submitMessage, setSubmitMessage] = useState("");
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadGroups = async () => {
+      try {
+        const response = await fetch("/api/groups");
+
+        if (!response.ok) {
+          throw new Error("Failed to load groups");
+        }
+
+        const data = await response.json();
+
+        if (isMounted) {
+          setGroups(data.items || []);
+          setGroupsLoadError("");
+        }
+      } catch (error) {
+        if (isMounted) {
+          setGroups([]);
+          setGroupsLoadError("No se pudieron cargar los grupos.");
+        }
+      }
+    };
+
+    loadGroups();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!defaultGroupNumber) {
+      return;
+    }
+
+    setFormData((previous) => ({
+      ...previous,
+      groupNumber: defaultGroupNumber,
+    }));
+  }, [defaultGroupNumber]);
 
   const updateFormData = (field, value) => {
     setFormData((previous) => ({
@@ -51,6 +111,10 @@ export default function ReportFormView({ isAuthenticated = false }) {
       nextErrors.name = "El nombre es obligatorio.";
     }
 
+    if (!formData.groupNumber || Number.isNaN(Number(formData.groupNumber))) {
+      nextErrors.groupNumber = "Seleccione un grupo válido.";
+    }
+
     if (formData.participation.trim().length === 0) {
       nextErrors.participation = "Seleccione una opción de participación.";
     }
@@ -69,6 +133,7 @@ export default function ReportFormView({ isAuthenticated = false }) {
 
   const resetForm = () => {
     setFormData({
+      groupNumber: defaultGroupNumber,
       name: "",
       participation: "",
       hours: "",
@@ -89,6 +154,7 @@ export default function ReportFormView({ isAuthenticated = false }) {
 
     const payload = {
       reportMonthKey,
+      groupNumber: Number(formData.groupNumber),
       name: formData.name.trim(),
       participation: formData.participation,
       hours: formData.hours.trim(),
@@ -99,15 +165,27 @@ export default function ReportFormView({ isAuthenticated = false }) {
     setSubmitStatus("loading");
 
     try {
+      const headers = {
+        "Content-Type": "application/json",
+      };
+
+      if (isAuthenticated && authToken) {
+        headers.Authorization = `Bearer ${authToken}`;
+      }
+
       const response = await fetch("/api/reports", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers,
         body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
+        if (response.status === 401 && isAuthenticated) {
+          setSubmitStatus("error");
+          setSubmitMessage("Su sesión expiró. Inicie sesión de nuevo.");
+          return;
+        }
+
         if (response.status === 409) {
           setSubmitStatus("error");
           setSubmitMessage(
@@ -156,6 +234,35 @@ export default function ReportFormView({ isAuthenticated = false }) {
 
       {canSubmit ? (
         <form className="form" onSubmit={handleSubmit} noValidate>
+          <div className="field">
+            <label htmlFor="groupNumber">
+              Grupo <span className="required">*</span>
+            </label>
+            <select
+              id="groupNumber"
+              name="groupNumber"
+              value={formData.groupNumber}
+              onChange={(event) => updateFormData("groupNumber", event.target.value)}
+              aria-invalid={Boolean(formErrors.groupNumber)}
+              aria-describedby={formErrors.groupNumber ? "group-error" : undefined}
+              disabled={isGroupUser}
+              required
+            >
+              <option value="">Seleccione un grupo</option>
+              {groups.map((group) => (
+                <option key={group.groupNumber} value={group.groupNumber}>
+                  {group.name} (Grupo {group.groupNumber})
+                </option>
+              ))}
+            </select>
+            {formErrors.groupNumber ? (
+              <span id="group-error" className="error">
+                {formErrors.groupNumber}
+              </span>
+            ) : null}
+            {groupsLoadError ? <span className="error">{groupsLoadError}</span> : null}
+          </div>
+
           <div className="field">
             <label htmlFor="name">
               Nombre <span className="required">*</span>

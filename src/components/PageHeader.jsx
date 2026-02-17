@@ -1,8 +1,14 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 
-export default function PageHeader({ isAuthenticated, isLoginRoute, onLogout }) {
+export default function PageHeader({
+  isAuthenticated,
+  isLoginRoute,
+  authUser,
+  onLogout,
+}) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const isSuperAdmin = true === Boolean(authUser?.isSuperAdmin);
 
   const toggleMenu = () => {
     setIsMenuOpen((previous) => !previous);
@@ -40,6 +46,14 @@ export default function PageHeader({ isAuthenticated, isLoginRoute, onLogout }) 
               </Link>
               <Link className="header-item header-link" to="/config" onClick={closeMenu}>
                 Configuración
+              </Link>
+              {isSuperAdmin ? (
+                <Link className="header-item header-link" to="/users" onClick={closeMenu}>
+                  Usuarios
+                </Link>
+              ) : null}
+              <Link className="header-item header-link" to="/profile" onClick={closeMenu}>
+                Perfil
               </Link>
               <button
                 className="header-item header-button"

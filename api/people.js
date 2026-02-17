@@ -1,5 +1,10 @@
+import {
+  ensureIdentitySchema,
+  isSuperAdmin,
+  refreshAuthFromDatabase,
+  requireAuth,
+} from "./_lib/auth.js";
 import { sql } from "./_lib/db.js";
-import { requireAuth } from "./_lib/auth.js";
 import { readJsonBody } from "./_lib/request.js";
 
 export const config = {
@@ -40,17 +45,78 @@ const getPersonIdFromRequest = (req) => {
   return 0;
 };
 
+const parseGroupNumber = (value) => {
+  if (value === null || value === undefined || String(value).trim() === "") {
+    return null;
+  }
+
+  const groupNumber = Number(value);
+
+  if (!Number.isInteger(groupNumber) || groupNumber < 1) {
+    return null;
+  }
+
+  return groupNumber;
+};
+
+const getCurrentAuth = async (req) => {
+  const auth = requireAuth(req);
+
+  if (!auth) {
+    return null;
+  }
+
+  return refreshAuthFromDatabase(auth);
+};
+
+const ensureGroupExists = async (groupNumber) => {
+  if (groupNumber === null) {
+    return false;
+  }
+
+  const result = await sql`
+    SELECT group_number
+    FROM groups
+    WHERE group_number = ${groupNumber}
+    LIMIT 1;
+  `;
+
+  return 0 < result.rows.length;
+};
+
 export default async function handler(req, res) {
   try {
-    if (req.method === "GET") {
-      const auth = requireAuth(req);
+    await ensureIdentitySchema();
+    await ensurePeopleTable();
 
-      if (!auth) {
-        res.status(401).json({ error: "Unauthorized" });
+    const auth = await getCurrentAuth(req);
+
+    if (!auth) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
+    if (req.method === "GET") {
+      if (isSuperAdmin(auth)) {
+        const result = await sql`
+          SELECT
+            id,
+            name,
+            group_number AS "groupNumber",
+            designation,
+            created_at AS "createdAt"
+          FROM people
+          ORDER BY name ASC;
+        `;
+
+        res.status(200).json({ items: result.rows });
         return;
       }
 
-      await ensurePeopleTable();
+      if (auth.groupNumber === null || auth.groupNumber === undefined) {
+        res.status(200).json({ items: [] });
+        return;
+      }
 
       const result = await sql`
         SELECT
@@ -60,6 +126,7 @@ export default async function handler(req, res) {
           designation,
           created_at AS "createdAt"
         FROM people
+        WHERE group_number = ${auth.groupNumber}
         ORDER BY name ASC;
       `;
 
@@ -67,14 +134,13 @@ export default async function handler(req, res) {
       return;
     }
 
-    if (req.method === "POST") {
-      const auth = requireAuth(req);
-      const body = await readJsonBody(req);
+    if (!isSuperAdmin(auth)) {
+      res.status(403).json({ error: "Forbidden" });
+      return;
+    }
 
-      if (!auth) {
-        res.status(401).json({ error: "Unauthorized" });
-        return;
-      }
+    if (req.method === "POST") {
+      const body = await readJsonBody(req);
 
       if (!body) {
         res.status(400).json({ error: "Invalid payload" });
@@ -82,10 +148,7 @@ export default async function handler(req, res) {
       }
 
       const name = String(body.name || "").trim();
-      const groupNumber =
-        body.groupNumber === null || body.groupNumber === undefined
-          ? null
-          : Number(body.groupNumber);
+      const groupNumber = parseGroupNumber(body.groupNumber);
       const designation = String(body.designation || "").trim() || "Publicador";
 
       if (!name) {
@@ -93,12 +156,10 @@ export default async function handler(req, res) {
         return;
       }
 
-      if (groupNumber !== null && Number.isNaN(groupNumber)) {
+      if (groupNumber === null || !(await ensureGroupExists(groupNumber))) {
         res.status(400).json({ error: "Invalid group number" });
         return;
       }
-
-      await ensurePeopleTable();
 
       const result = await sql`
         INSERT INTO people (
@@ -119,14 +180,8 @@ export default async function handler(req, res) {
     }
 
     if (req.method === "PUT") {
-      const auth = requireAuth(req);
       const personId = getPersonIdFromRequest(req);
       const body = await readJsonBody(req);
-
-      if (!auth) {
-        res.status(401).json({ error: "Unauthorized" });
-        return;
-      }
 
       if (!personId) {
         res.status(400).json({ error: "Invalid person id" });
@@ -139,10 +194,7 @@ export default async function handler(req, res) {
       }
 
       const name = String(body.name || "").trim();
-      const groupNumber =
-        body.groupNumber === null || body.groupNumber === undefined
-          ? null
-          : Number(body.groupNumber);
+      const groupNumber = parseGroupNumber(body.groupNumber);
       const designation = String(body.designation || "").trim() || "Publicador";
 
       if (!name) {
@@ -150,12 +202,10 @@ export default async function handler(req, res) {
         return;
       }
 
-      if (groupNumber !== null && Number.isNaN(groupNumber)) {
+      if (groupNumber === null || !(await ensureGroupExists(groupNumber))) {
         res.status(400).json({ error: "Invalid group number" });
         return;
       }
-
-      await ensurePeopleTable();
 
       const result = await sql`
         UPDATE people
@@ -177,20 +227,12 @@ export default async function handler(req, res) {
     }
 
     if (req.method === "DELETE") {
-      const auth = requireAuth(req);
       const personId = getPersonIdFromRequest(req);
-
-      if (!auth) {
-        res.status(401).json({ error: "Unauthorized" });
-        return;
-      }
 
       if (!personId) {
         res.status(400).json({ error: "Invalid person id" });
         return;
       }
-
-      await ensurePeopleTable();
 
       const result = await sql`
         DELETE FROM people

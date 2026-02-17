@@ -6,17 +6,22 @@ import LoginView from "./components/LoginView.jsx";
 import NotFoundView from "./components/NotFoundView.jsx";
 import PageFooter from "./components/PageFooter.jsx";
 import PageHeader from "./components/PageHeader.jsx";
+import ProfileView from "./components/ProfileView.jsx";
 import ReportFormView from "./components/ReportFormView.jsx";
+import UsersView from "./components/UsersView.jsx";
 import { clearToken, getStoredToken, storeToken } from "./utils/authStorage.js";
 import { getReportingLabelFromKey } from "./utils/reporting.js";
 import { getStoredTheme, storeTheme } from "./utils/themeStorage.js";
 
 export default function App() {
   const [authToken, setAuthToken] = useState("");
+  const [authUser, setAuthUser] = useState(null);
   const [theme, setTheme] = useState("dark");
   const location = useLocation();
   const isAdminRoute = location.pathname.startsWith("/admin");
   const isConfigRoute = location.pathname.startsWith("/config");
+  const isUsersRoute = location.pathname.startsWith("/users");
+  const isProfileRoute = location.pathname.startsWith("/profile");
   const isLoginRoute = location.pathname === "/login";
   const isAuthenticated = Boolean(authToken);
 
@@ -27,6 +32,47 @@ export default function App() {
   useEffect(() => {
     setTheme(getStoredTheme());
   }, []);
+
+  useEffect(() => {
+    if (!authToken) {
+      setAuthUser(null);
+      return;
+    }
+
+    let isMounted = true;
+
+    const loadCurrentUser = async () => {
+      try {
+        const response = await fetch("/api/auth/me", {
+          headers: {
+            Authorization: `Bearer ${authToken}`,
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error("Unauthorized");
+        }
+
+        const data = await response.json();
+
+        if (isMounted) {
+          setAuthUser(data.user || null);
+        }
+      } catch (error) {
+        if (isMounted) {
+          clearToken();
+          setAuthToken("");
+          setAuthUser(null);
+        }
+      }
+    };
+
+    loadCurrentUser();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [authToken]);
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
@@ -64,17 +110,36 @@ export default function App() {
       return;
     }
 
+    if ("/users" === location.pathname) {
+      document.title = "Usuarios | Congregación El Puente Monte Tabor";
+      return;
+    }
+
+    if ("/profile" === location.pathname) {
+      document.title = "Perfil | Congregación El Puente Monte Tabor";
+      return;
+    }
+
     document.title = "Congregación El Puente Monte Tabor";
   }, [location.pathname]);
 
-  const handleLogin = (token) => {
+  const handleLogin = (session) => {
+    const token =
+      typeof session === "string" ? session : String(session?.token || "").trim();
+
+    if (!token) {
+      return;
+    }
+
     storeToken(token);
     setAuthToken(token);
+    setAuthUser(session?.user || null);
   };
 
   const handleLogout = () => {
     clearToken();
     setAuthToken("");
+    setAuthUser(null);
   };
 
   const handleThemeChange = (nextTheme) => {
@@ -92,33 +157,76 @@ export default function App() {
         <PageHeader
           isAuthenticated={isAuthenticated}
           isLoginRoute={isLoginRoute}
+          authUser={authUser}
           onLogout={handleLogout}
         />
       ) : null}
 
       <div className="page-main">
-        <main className={`card ${isAdminRoute || isConfigRoute ? "card-wide" : ""}`}>
+        <main
+          className={`card ${
+            isAdminRoute || isConfigRoute || isUsersRoute || isProfileRoute
+              ? "card-wide"
+              : ""
+          }`}
+        >
           <Routes>
-            <Route path="/" element={<ReportFormView isAuthenticated={isAuthenticated} />} />
+            <Route
+              path="/"
+              element={
+                <ReportFormView
+                  isAuthenticated={isAuthenticated}
+                  authUser={authUser}
+                  authToken={authToken}
+                />
+              }
+            />
             <Route path="/login" element={<LoginView onLogin={handleLogin} />} />
             <Route
               path="/admin"
-              element={<AdminView authToken={authToken} onLogout={handleLogout} />}
+              element={
+                <AdminView
+                  authToken={authToken}
+                  authUser={authUser}
+                  onLogout={handleLogout}
+                />
+              }
             />
             <Route
               path="/admin/:monthKey"
-              element={<AdminView authToken={authToken} onLogout={handleLogout} />}
+              element={
+                <AdminView
+                  authToken={authToken}
+                  authUser={authUser}
+                  onLogout={handleLogout}
+                />
+              }
             />
             <Route
               path="/config"
               element={
                 <ConfigView
                   authToken={authToken}
+                  authUser={authUser}
                   onLogout={handleLogout}
                   theme={theme}
                   onThemeChange={handleThemeChange}
                 />
               }
+            />
+            <Route
+              path="/users"
+              element={
+                <UsersView
+                  authToken={authToken}
+                  authUser={authUser}
+                  onLogout={handleLogout}
+                />
+              }
+            />
+            <Route
+              path="/profile"
+              element={<ProfileView authToken={authToken} onLogout={handleLogout} />}
             />
             <Route path="*" element={<NotFoundView />} />
           </Routes>

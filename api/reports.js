@@ -1,5 +1,10 @@
+import {
+  ensureIdentitySchema,
+  isSuperAdmin,
+  refreshAuthFromDatabase,
+  requireAuth,
+} from "./_lib/auth.js";
 import { sql } from "./_lib/db.js";
-import { requireAuth } from "./_lib/auth.js";
 import { readJsonBody } from "./_lib/request.js";
 
 export const config = {
@@ -12,6 +17,7 @@ const ensureReportsTable = async () => {
       id SERIAL PRIMARY KEY,
       report_month_key TEXT NOT NULL,
       report_month_label TEXT NOT NULL,
+      group_number INTEGER,
       name TEXT NOT NULL,
       participation TEXT NOT NULL,
       designation TEXT,
@@ -23,6 +29,7 @@ const ensureReportsTable = async () => {
   `;
 
   await sql`ALTER TABLE reports ADD COLUMN IF NOT EXISTS designation TEXT;`;
+  await sql`ALTER TABLE reports ADD COLUMN IF NOT EXISTS group_number INTEGER;`;
   await sql`ALTER TABLE reports ALTER COLUMN designation SET DEFAULT 'Publicador';`;
   await sql`UPDATE reports SET designation = 'Publicador' WHERE designation IS NULL OR designation = '';`;
 };
@@ -43,6 +50,7 @@ const ensureReportPeriodsTable = async () => {
 };
 
 const ensureReportSchema = async () => {
+  await ensureIdentitySchema();
   await ensureReportsTable();
   await ensureReportPeriodsTable();
 };
@@ -63,7 +71,7 @@ const getReportDateFromKey = (monthKey) => {
     return null;
   }
 
-  const [yearValue, monthValue] = monthKey.split("-");
+  const [yearValue, monthValue] = String(monthKey).split("-");
   const year = Number(yearValue);
   const month = Number(monthValue);
 
@@ -103,6 +111,34 @@ const getReportIdFromRequest = (req) => {
   return 0;
 };
 
+const parseGroupNumber = (value) => {
+  if (value === null || value === undefined || String(value).trim() === "") {
+    return null;
+  }
+
+  const groupNumber = Number(value);
+
+  if (!Number.isInteger(groupNumber) || groupNumber < 1) {
+    return null;
+  }
+
+  return groupNumber;
+};
+
+const getCurrentAuth = async (req) => {
+  const auth = requireAuth(req);
+
+  if (!auth) {
+    return null;
+  }
+
+  return refreshAuthFromDatabase(auth);
+};
+
+const hasAuthHeader = (req) => {
+  return Boolean(req.headers.authorization);
+};
+
 const isReportPeriodClosed = async (reportMonthKey) => {
   if (!reportMonthKey) {
     return false;
@@ -134,10 +170,43 @@ const getClosedReportPeriods = async () => {
   return result.rows;
 };
 
+const ensureGroupExists = async (groupNumber) => {
+  if (groupNumber === null) {
+    return false;
+  }
+
+  const result = await sql`
+    SELECT group_number
+    FROM groups
+    WHERE group_number = ${groupNumber}
+    LIMIT 1;
+  `;
+
+  return 0 < result.rows.length;
+};
+
+const canAccessReportGroup = (auth, reportGroupNumber) => {
+  if (!auth) {
+    return false;
+  }
+
+  if (isSuperAdmin(auth)) {
+    return true;
+  }
+
+  if (auth.groupNumber === null || auth.groupNumber === undefined) {
+    return false;
+  }
+
+  return Number(reportGroupNumber) === Number(auth.groupNumber);
+};
+
 export default async function handler(req, res) {
   try {
+    await ensureReportSchema();
+
     if (req.method === "GET") {
-      const auth = requireAuth(req);
+      const auth = await getCurrentAuth(req);
 
       if (!auth) {
         res.status(401).json({ error: "Unauthorized" });
@@ -145,27 +214,57 @@ export default async function handler(req, res) {
       }
 
       try {
-        await ensureReportSchema();
+        let reportsResult;
 
-        const reportsResult = await sql`
-          SELECT
-            id,
-            report_month_key AS "reportMonthKey",
-            report_month_label AS "reportMonthLabel",
-            name,
-            participation,
-            designation,
-            hours,
-            courses,
-            comments,
-            submitted_at AS "submittedAt"
-          FROM reports
-          ORDER BY submitted_at DESC;
-        `;
+        if (isSuperAdmin(auth)) {
+          reportsResult = await sql`
+            SELECT
+              id,
+              report_month_key AS "reportMonthKey",
+              report_month_label AS "reportMonthLabel",
+              group_number AS "groupNumber",
+              name,
+              participation,
+              designation,
+              hours,
+              courses,
+              comments,
+              submitted_at AS "submittedAt"
+            FROM reports
+            ORDER BY submitted_at DESC;
+          `;
+        } else if (auth.groupNumber === null || auth.groupNumber === undefined) {
+          reportsResult = { rows: [] };
+        } else {
+          reportsResult = await sql`
+            SELECT
+              id,
+              report_month_key AS "reportMonthKey",
+              report_month_label AS "reportMonthLabel",
+              group_number AS "groupNumber",
+              name,
+              participation,
+              designation,
+              hours,
+              courses,
+              comments,
+              submitted_at AS "submittedAt"
+            FROM reports
+            WHERE group_number = ${auth.groupNumber}
+            ORDER BY submitted_at DESC;
+          `;
+        }
 
         const closedPeriods = await getClosedReportPeriods();
+        const scopedClosedPeriods = isSuperAdmin(auth)
+          ? closedPeriods
+          : closedPeriods.filter((period) =>
+              reportsResult.rows.some(
+                (report) => report.reportMonthKey === period.reportMonthKey
+              )
+            );
 
-        res.status(200).json({ items: reportsResult.rows, periods: closedPeriods });
+        res.status(200).json({ items: reportsResult.rows, periods: scopedClosedPeriods });
       } catch (error) {
         res.status(500).json({ error: "Database error", detail: String(error) });
       }
@@ -173,7 +272,6 @@ export default async function handler(req, res) {
     }
 
     if (req.method === "POST") {
-      const auth = requireAuth(req);
       const body = await readJsonBody(req);
 
       if (!body) {
@@ -181,11 +279,23 @@ export default async function handler(req, res) {
         return;
       }
 
+      const auth = await getCurrentAuth(req);
+
+      if (hasAuthHeader(req) && !auth) {
+        res.status(401).json({ error: "Unauthorized" });
+        return;
+      }
+
       const action = String(body.action || "").trim();
 
-      if ("closePeriod" === action) {
+      if ("closePeriod" === action || "reopenPeriod" === action) {
         if (!auth) {
           res.status(401).json({ error: "Unauthorized" });
+          return;
+        }
+
+        if (!isSuperAdmin(auth)) {
+          res.status(403).json({ error: "Forbidden" });
           return;
         }
 
@@ -197,9 +307,7 @@ export default async function handler(req, res) {
           return;
         }
 
-        try {
-          await ensureReportSchema();
-
+        if ("closePeriod" === action) {
           const monthReports = await sql`
             SELECT COUNT(*)::int AS total
             FROM reports
@@ -209,9 +317,7 @@ export default async function handler(req, res) {
           const totalReports = Number(monthReports.rows[0]?.total || 0);
 
           if (0 === totalReports) {
-            res
-              .status(400)
-              .json({ error: "Cannot close period without reports" });
+            res.status(400).json({ error: "Cannot close period without reports" });
             return;
           }
 
@@ -236,55 +342,32 @@ export default async function handler(req, res) {
           `;
 
           res.status(200).json({ ok: true, reportMonthKey });
-        } catch (error) {
-          res.status(500).json({ error: "Database error", detail: String(error) });
-        }
-        return;
-      }
-
-      if ("reopenPeriod" === action) {
-        if (!auth) {
-          res.status(401).json({ error: "Unauthorized" });
           return;
         }
 
-        const reportMonthKey = String(body.reportMonthKey || "").trim();
-        const reportMonthLabel = getReportMonthLabel(reportMonthKey);
+        const periodResult = await sql`
+          SELECT
+            is_closed AS "isClosed"
+          FROM report_periods
+          WHERE report_month_key = ${reportMonthKey}
+          LIMIT 1;
+        `;
 
-        if (!reportMonthLabel) {
-          res.status(400).json({ error: "Invalid report month" });
+        if (true !== Boolean(periodResult.rows[0]?.isClosed)) {
+          res.status(400).json({ error: "Report period is already open" });
           return;
         }
 
-        try {
-          await ensureReportSchema();
+        await sql`
+          UPDATE report_periods
+          SET
+            report_month_label = ${reportMonthLabel},
+            is_closed = FALSE,
+            closed_at = NULL
+          WHERE report_month_key = ${reportMonthKey};
+        `;
 
-          const periodResult = await sql`
-            SELECT
-              is_closed AS "isClosed"
-            FROM report_periods
-            WHERE report_month_key = ${reportMonthKey}
-            LIMIT 1;
-          `;
-
-          if (true !== Boolean(periodResult.rows[0]?.isClosed)) {
-            res.status(400).json({ error: "Report period is already open" });
-            return;
-          }
-
-          await sql`
-            UPDATE report_periods
-            SET
-              report_month_label = ${reportMonthLabel},
-              is_closed = FALSE,
-              closed_at = NULL
-            WHERE report_month_key = ${reportMonthKey};
-          `;
-
-          res.status(200).json({ ok: true, reportMonthKey });
-        } catch (error) {
-          res.status(500).json({ error: "Database error", detail: String(error) });
-        }
+        res.status(200).json({ ok: true, reportMonthKey });
         return;
       }
 
@@ -315,47 +398,60 @@ export default async function handler(req, res) {
         return;
       }
 
-      try {
-        await ensureReportSchema();
+      let reportGroupNumber = null;
 
-        if (await isReportPeriodClosed(reportMonthKey)) {
-          res.status(409).json({ error: "Report period is closed" });
-          return;
+      if (auth) {
+        if (isSuperAdmin(auth)) {
+          reportGroupNumber = parseGroupNumber(body.groupNumber);
+        } else {
+          reportGroupNumber = parseGroupNumber(auth.groupNumber);
         }
-
-        const result = await sql`
-          INSERT INTO reports (
-            report_month_key,
-            report_month_label,
-            name,
-            participation,
-            designation,
-            hours,
-            courses,
-            comments
-          )
-          VALUES (
-            ${reportMonthKey},
-            ${reportMonthLabel},
-            ${name},
-            ${participation},
-            ${designation},
-            ${hours},
-            ${courses},
-            ${comments}
-          )
-          RETURNING id;
-        `;
-
-        res.status(200).json({ ok: true, id: result.rows[0]?.id });
-      } catch (error) {
-        res.status(500).json({ error: "Database error", detail: String(error) });
+      } else {
+        reportGroupNumber = parseGroupNumber(body.groupNumber);
       }
+
+      if (reportGroupNumber === null || !(await ensureGroupExists(reportGroupNumber))) {
+        res.status(400).json({ error: "Invalid group" });
+        return;
+      }
+
+      if (await isReportPeriodClosed(reportMonthKey)) {
+        res.status(409).json({ error: "Report period is closed" });
+        return;
+      }
+
+      const result = await sql`
+        INSERT INTO reports (
+          report_month_key,
+          report_month_label,
+          group_number,
+          name,
+          participation,
+          designation,
+          hours,
+          courses,
+          comments
+        )
+        VALUES (
+          ${reportMonthKey},
+          ${reportMonthLabel},
+          ${reportGroupNumber},
+          ${name},
+          ${participation},
+          ${designation},
+          ${hours},
+          ${courses},
+          ${comments}
+        )
+        RETURNING id;
+      `;
+
+      res.status(200).json({ ok: true, id: result.rows[0]?.id });
       return;
     }
 
     if (req.method === "PUT") {
-      const auth = requireAuth(req);
+      const auth = await getCurrentAuth(req);
       const reportId = getReportIdFromRequest(req);
       const body = await readJsonBody(req);
 
@@ -399,64 +495,77 @@ export default async function handler(req, res) {
         return;
       }
 
-      try {
-        await ensureReportSchema();
+      const currentReport = await sql`
+        SELECT
+          report_month_key AS "reportMonthKey",
+          group_number AS "groupNumber"
+        FROM reports
+        WHERE id = ${reportId}
+        LIMIT 1;
+      `;
 
-        const currentReport = await sql`
-          SELECT report_month_key AS "reportMonthKey"
-          FROM reports
-          WHERE id = ${reportId}
-          LIMIT 1;
-        `;
+      const existingReport = currentReport.rows[0] || null;
 
-        if (0 === currentReport.rows.length) {
-          res.status(404).json({ error: "Report not found" });
-          return;
-        }
-
-        const currentReportMonthKey = String(
-          currentReport.rows[0]?.reportMonthKey || ""
-        );
-
-        if (await isReportPeriodClosed(currentReportMonthKey)) {
-          res.status(409).json({ error: "Report period is closed" });
-          return;
-        }
-
-        if (await isReportPeriodClosed(reportMonthKey)) {
-          res.status(409).json({ error: "Report period is closed" });
-          return;
-        }
-
-        const result = await sql`
-          UPDATE reports
-          SET
-            report_month_key = ${reportMonthKey},
-            report_month_label = ${reportMonthLabel},
-            name = ${name},
-            participation = ${participation},
-            designation = ${designation},
-            hours = ${hours},
-            courses = ${courses},
-            comments = ${comments}
-          WHERE id = ${reportId}
-          RETURNING id;
-        `;
-
-        if (result.rows.length === 0) {
-          res.status(404).json({ error: "Report not found" });
-          return;
-        }
-
-        res.status(200).json({ ok: true, id: result.rows[0].id });
-      } catch (error) {
-        res.status(500).json({ error: "Database error", detail: String(error) });
+      if (!existingReport) {
+        res.status(404).json({ error: "Report not found" });
+        return;
       }
+
+      if (!canAccessReportGroup(auth, existingReport.groupNumber)) {
+        res.status(403).json({ error: "Forbidden" });
+        return;
+      }
+
+      let reportGroupNumber = null;
+
+      if (isSuperAdmin(auth)) {
+        reportGroupNumber = parseGroupNumber(body.groupNumber);
+      } else {
+        reportGroupNumber = parseGroupNumber(auth.groupNumber);
+      }
+
+      if (reportGroupNumber === null || !(await ensureGroupExists(reportGroupNumber))) {
+        res.status(400).json({ error: "Invalid group" });
+        return;
+      }
+
+      if (await isReportPeriodClosed(String(existingReport.reportMonthKey || ""))) {
+        res.status(409).json({ error: "Report period is closed" });
+        return;
+      }
+
+      if (await isReportPeriodClosed(reportMonthKey)) {
+        res.status(409).json({ error: "Report period is closed" });
+        return;
+      }
+
+      const result = await sql`
+        UPDATE reports
+        SET
+          report_month_key = ${reportMonthKey},
+          report_month_label = ${reportMonthLabel},
+          group_number = ${reportGroupNumber},
+          name = ${name},
+          participation = ${participation},
+          designation = ${designation},
+          hours = ${hours},
+          courses = ${courses},
+          comments = ${comments}
+        WHERE id = ${reportId}
+        RETURNING id;
+      `;
+
+      if (result.rows.length === 0) {
+        res.status(404).json({ error: "Report not found" });
+        return;
+      }
+
+      res.status(200).json({ ok: true, id: result.rows[0].id });
       return;
     }
 
     if (req.method === "DELETE") {
-      const auth = requireAuth(req);
+      const auth = await getCurrentAuth(req);
       const reportId = getReportIdFromRequest(req);
 
       if (!auth) {
@@ -469,45 +578,44 @@ export default async function handler(req, res) {
         return;
       }
 
-      try {
-        await ensureReportSchema();
+      const currentReport = await sql`
+        SELECT
+          report_month_key AS "reportMonthKey",
+          group_number AS "groupNumber"
+        FROM reports
+        WHERE id = ${reportId}
+        LIMIT 1;
+      `;
 
-        const currentReport = await sql`
-          SELECT report_month_key AS "reportMonthKey"
-          FROM reports
-          WHERE id = ${reportId}
-          LIMIT 1;
-        `;
+      const existingReport = currentReport.rows[0] || null;
 
-        if (0 === currentReport.rows.length) {
-          res.status(404).json({ error: "Report not found" });
-          return;
-        }
-
-        const currentReportMonthKey = String(
-          currentReport.rows[0]?.reportMonthKey || ""
-        );
-
-        if (await isReportPeriodClosed(currentReportMonthKey)) {
-          res.status(409).json({ error: "Report period is closed" });
-          return;
-        }
-
-        const result = await sql`
-          DELETE FROM reports
-          WHERE id = ${reportId}
-          RETURNING id;
-        `;
-
-        if (result.rows.length === 0) {
-          res.status(404).json({ error: "Report not found" });
-          return;
-        }
-
-        res.status(200).json({ ok: true, id: result.rows[0].id });
-      } catch (error) {
-        res.status(500).json({ error: "Database error", detail: String(error) });
+      if (!existingReport) {
+        res.status(404).json({ error: "Report not found" });
+        return;
       }
+
+      if (!canAccessReportGroup(auth, existingReport.groupNumber)) {
+        res.status(403).json({ error: "Forbidden" });
+        return;
+      }
+
+      if (await isReportPeriodClosed(String(existingReport.reportMonthKey || ""))) {
+        res.status(409).json({ error: "Report period is closed" });
+        return;
+      }
+
+      const result = await sql`
+        DELETE FROM reports
+        WHERE id = ${reportId}
+        RETURNING id;
+      `;
+
+      if (result.rows.length === 0) {
+        res.status(404).json({ error: "Report not found" });
+        return;
+      }
+
+      res.status(200).json({ ok: true, id: result.rows[0].id });
       return;
     }
 

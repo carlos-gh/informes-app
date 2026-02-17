@@ -1,19 +1,31 @@
 import crypto from "crypto";
+import { sql } from "./db.js";
 
 const TOKEN_TTL_MS = 1000 * 60 * 60 * 12;
+const PASSWORD_HASH_PREFIX = "pbkdf2_sha256";
+const PASSWORD_ITERATIONS = 310000;
+const PASSWORD_KEY_LENGTH = 32;
+const PASSWORD_DIGEST = "sha256";
+const PASSWORD_MIN_LENGTH = 10;
+const PASSWORD_MAX_LENGTH = 128;
+const USERNAME_MIN_LENGTH = 3;
+const USERNAME_MAX_LENGTH = 48;
+const USERNAME_PATTERN = /^[a-z0-9._-]+$/;
 
-const getAdminCredentials = () => ({
-  username: process.env.ADMIN_USERNAME || "",
-  password: process.env.ADMIN_PASSWORD || "",
-});
+const ROLE_SUPERADMIN = "superadmin";
+const ROLE_GROUP_ADMIN = "group_admin";
 
 const getTokenSecret = () => {
   return process.env.ADMIN_TOKEN_SECRET || "";
 };
 
+const normalizeUsername = (value) => {
+  return String(value || "").trim().toLowerCase();
+};
+
 const safeEqual = (valueA, valueB) => {
-  const bufferA = Buffer.from(valueA);
-  const bufferB = Buffer.from(valueB);
+  const bufferA = Buffer.from(String(valueA || ""));
+  const bufferB = Buffer.from(String(valueB || ""));
 
   if (bufferA.length !== bufferB.length) {
     return false;
@@ -38,20 +50,287 @@ const decodePayload = (value) => {
   }
 };
 
-export const validateCredentials = (username, password) => {
-  const admin = getAdminCredentials();
+const getPasswordPepper = () => {
+  return process.env.PASSWORD_PEPPER || "";
+};
 
-  if (!admin.username || !admin.password) {
+const derivePasswordHash = (password, salt, iterations) => {
+  return crypto.pbkdf2Sync(
+    `${password}${getPasswordPepper()}`,
+    salt,
+    iterations,
+    PASSWORD_KEY_LENGTH,
+    PASSWORD_DIGEST
+  );
+};
+
+const parseStoredPasswordHash = (passwordHash) => {
+  const parts = String(passwordHash || "").split("$");
+
+  if (parts.length !== 4 || parts[0] !== PASSWORD_HASH_PREFIX) {
+    return null;
+  }
+
+  const iterations = Number(parts[1]);
+  const salt = Buffer.from(parts[2] || "", "base64url");
+  const hash = Buffer.from(parts[3] || "", "base64url");
+
+  if (
+    !Number.isInteger(iterations) ||
+    iterations <= 0 ||
+    iterations > 1000000 ||
+    salt.length === 0 ||
+    hash.length !== PASSWORD_KEY_LENGTH
+  ) {
+    return null;
+  }
+
+  return { iterations, salt, hash };
+};
+
+export const hashPassword = (password) => {
+  const salt = crypto.randomBytes(16);
+  const hash = derivePasswordHash(password, salt, PASSWORD_ITERATIONS);
+
+  return [
+    PASSWORD_HASH_PREFIX,
+    String(PASSWORD_ITERATIONS),
+    salt.toString("base64url"),
+    hash.toString("base64url"),
+  ].join("$");
+};
+
+export const verifyPasswordHash = (password, passwordHash) => {
+  const parsed = parseStoredPasswordHash(passwordHash);
+
+  if (!parsed) {
     return false;
   }
 
-  return safeEqual(username, admin.username) && safeEqual(password, admin.password);
+  const expectedHash = derivePasswordHash(password, parsed.salt, parsed.iterations);
+
+  if (expectedHash.length !== parsed.hash.length) {
+    return false;
+  }
+
+  return crypto.timingSafeEqual(expectedHash, parsed.hash);
 };
 
-export const createToken = (username) => {
+export const validateUsernameInput = (username) => {
+  const normalized = normalizeUsername(username);
+
+  if (
+    normalized.length < USERNAME_MIN_LENGTH ||
+    normalized.length > USERNAME_MAX_LENGTH
+  ) {
+    return "";
+  }
+
+  if (!USERNAME_PATTERN.test(normalized)) {
+    return "";
+  }
+
+  return normalized;
+};
+
+export const validatePasswordInput = (password) => {
+  const value = String(password || "");
+
+  if (value.length < PASSWORD_MIN_LENGTH || value.length > PASSWORD_MAX_LENGTH) {
+    return false;
+  }
+
+  return true;
+};
+
+export const ensureIdentitySchema = async () => {
+  await sql`
+    CREATE TABLE IF NOT EXISTS groups (
+      group_number INTEGER PRIMARY KEY,
+      name TEXT NOT NULL,
+      superintendent_user_id INTEGER UNIQUE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS users (
+      id SERIAL PRIMARY KEY,
+      username TEXT NOT NULL UNIQUE,
+      password_hash TEXT NOT NULL,
+      role TEXT NOT NULL DEFAULT 'group_admin',
+      group_number INTEGER,
+      is_active BOOLEAN NOT NULL DEFAULT TRUE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `;
+
+  await sql`ALTER TABLE groups ADD COLUMN IF NOT EXISTS group_number INTEGER;`;
+  await sql`ALTER TABLE groups ADD COLUMN IF NOT EXISTS name TEXT;`;
+  await sql`ALTER TABLE groups ADD COLUMN IF NOT EXISTS superintendent_user_id INTEGER;`;
+  await sql`ALTER TABLE groups ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW();`;
+  await sql`ALTER TABLE groups ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();`;
+
+  await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS username TEXT;`;
+  await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash TEXT;`;
+  await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'group_admin';`;
+  await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS group_number INTEGER;`;
+  await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE;`;
+  await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW();`;
+  await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();`;
+
+  await sql`ALTER TABLE users ALTER COLUMN role SET DEFAULT 'group_admin';`;
+  await sql`ALTER TABLE users ALTER COLUMN is_active SET DEFAULT TRUE;`;
+
+  await sql`UPDATE users SET username = LOWER(TRIM(username)) WHERE username IS NOT NULL;`;
+  await sql`UPDATE users SET role = 'group_admin' WHERE role IS NULL OR role = '';`;
+  await sql`UPDATE users SET is_active = TRUE WHERE is_active IS NULL;`;
+  await sql`UPDATE groups SET updated_at = NOW() WHERE updated_at IS NULL;`;
+  await sql`UPDATE users SET updated_at = NOW() WHERE updated_at IS NULL;`;
+  await sql`CREATE UNIQUE INDEX IF NOT EXISTS users_username_unique_idx ON users (username);`;
+  await sql`CREATE UNIQUE INDEX IF NOT EXISTS groups_group_number_unique_idx ON groups (group_number);`;
+};
+
+const bootstrapSuperAdmin = async () => {
+  const envUsername = validateUsernameInput(process.env.ADMIN_USERNAME || "");
+  const envPassword = String(process.env.ADMIN_PASSWORD || "");
+
+  if (!envUsername || !envPassword) {
+    return;
+  }
+
+  const result = await sql`
+    SELECT id
+    FROM users
+    WHERE username = ${envUsername}
+    LIMIT 1;
+  `;
+
+  if (0 === result.rows.length) {
+    const passwordHash = hashPassword(envPassword);
+
+    await sql`
+      INSERT INTO users (
+        username,
+        password_hash,
+        role,
+        group_number,
+        is_active
+      )
+      VALUES (
+        ${envUsername},
+        ${passwordHash},
+        ${ROLE_SUPERADMIN},
+        NULL,
+        TRUE
+      );
+    `;
+    return;
+  }
+
+  await sql`
+    UPDATE users
+    SET
+      role = ${ROLE_SUPERADMIN},
+      is_active = TRUE,
+      updated_at = NOW()
+    WHERE username = ${envUsername};
+  `;
+};
+
+const buildAuthUser = (row) => {
+  const role = String(row?.role || ROLE_GROUP_ADMIN);
+  const normalizedRole = role === ROLE_SUPERADMIN ? ROLE_SUPERADMIN : ROLE_GROUP_ADMIN;
+  const groupNumberValue =
+    row?.groupNumber === null || row?.groupNumber === undefined
+      ? null
+      : Number(row.groupNumber);
+  const groupNumber = Number.isNaN(groupNumberValue) ? null : groupNumberValue;
+
+  return {
+    userId: Number(row?.id || 0),
+    username: String(row?.username || ""),
+    role: normalizedRole,
+    groupNumber,
+    isSuperAdmin: normalizedRole === ROLE_SUPERADMIN,
+  };
+};
+
+const getUserForAuthByUsername = async (username) => {
+  const result = await sql`
+    SELECT
+      id,
+      username,
+      password_hash AS "passwordHash",
+      role,
+      group_number AS "groupNumber",
+      is_active AS "isActive"
+    FROM users
+    WHERE username = ${username}
+    LIMIT 1;
+  `;
+
+  return result.rows[0] || null;
+};
+
+const getUserForAuthById = async (userId) => {
+  const result = await sql`
+    SELECT
+      id,
+      username,
+      password_hash AS "passwordHash",
+      role,
+      group_number AS "groupNumber",
+      is_active AS "isActive"
+    FROM users
+    WHERE id = ${userId}
+    LIMIT 1;
+  `;
+
+  return result.rows[0] || null;
+};
+
+export const authenticateUser = async (username, password) => {
+  const normalizedUsername = validateUsernameInput(username);
+  const passwordValue = String(password || "");
+
+  if (!normalizedUsername || !passwordValue) {
+    return null;
+  }
+
+  await ensureIdentitySchema();
+  await bootstrapSuperAdmin();
+
+  const user = await getUserForAuthByUsername(normalizedUsername);
+
+  if (!user || true !== Boolean(user.isActive)) {
+    return null;
+  }
+
+  if (!verifyPasswordHash(passwordValue, user.passwordHash)) {
+    return null;
+  }
+
+  return buildAuthUser(user);
+};
+
+export const createToken = (authUser) => {
   const issuedAt = Date.now();
   const expiresAt = issuedAt + TOKEN_TTL_MS;
-  const payload = { username, issuedAt, expiresAt };
+  const user = authUser || {};
+  const payload = {
+    userId: Number(user.userId || 0),
+    username: String(user.username || ""),
+    role: String(user.role || ROLE_GROUP_ADMIN),
+    groupNumber:
+      user.groupNumber === null || user.groupNumber === undefined
+        ? null
+        : Number(user.groupNumber),
+    issuedAt,
+    expiresAt,
+  };
   const tokenBody = encodePayload(payload);
   const secret = getTokenSecret();
   const signature = signValue(tokenBody, secret);
@@ -72,7 +351,7 @@ export const verifyToken = (token) => {
     return { valid: false };
   }
 
-  const [tokenBody, signature] = token.split(".");
+  const [tokenBody, signature] = String(token).split(".");
 
   if (!tokenBody || !signature) {
     return { valid: false };
@@ -84,7 +363,7 @@ export const verifyToken = (token) => {
   }
 
   const payload = decodePayload(tokenBody);
-  if (!payload || !payload.expiresAt) {
+  if (!payload || !payload.expiresAt || !payload.userId || !payload.username) {
     return { valid: false };
   }
 
@@ -92,7 +371,26 @@ export const verifyToken = (token) => {
     return { valid: false };
   }
 
-  return { valid: true, payload };
+  const role =
+    payload.role === ROLE_SUPERADMIN ? ROLE_SUPERADMIN : ROLE_GROUP_ADMIN;
+  const groupNumberValue =
+    payload.groupNumber === null || payload.groupNumber === undefined
+      ? null
+      : Number(payload.groupNumber);
+  const groupNumber = Number.isNaN(groupNumberValue) ? null : groupNumberValue;
+
+  return {
+    valid: true,
+    payload: {
+      userId: Number(payload.userId),
+      username: String(payload.username),
+      role,
+      groupNumber,
+      isSuperAdmin: role === ROLE_SUPERADMIN,
+      issuedAt: Number(payload.issuedAt || 0),
+      expiresAt: Number(payload.expiresAt || 0),
+    },
+  };
 };
 
 export const getTokenFromRequest = (req) => {
@@ -113,4 +411,45 @@ export const requireAuth = (req) => {
   }
 
   return result.payload;
+};
+
+export const refreshAuthFromDatabase = async (authPayload) => {
+  if (!authPayload?.userId) {
+    return null;
+  }
+
+  await ensureIdentitySchema();
+  const user = await getUserForAuthById(authPayload.userId);
+
+  if (!user || true !== Boolean(user.isActive)) {
+    return null;
+  }
+
+  return buildAuthUser(user);
+};
+
+export const isSuperAdmin = (authPayload) => {
+  return true === Boolean(authPayload?.isSuperAdmin || authPayload?.role === ROLE_SUPERADMIN);
+};
+
+export const getSafeAuthUser = (authPayload) => {
+  if (!authPayload) {
+    return null;
+  }
+
+  return {
+    userId: Number(authPayload.userId || 0),
+    username: String(authPayload.username || ""),
+    role: isSuperAdmin(authPayload) ? ROLE_SUPERADMIN : ROLE_GROUP_ADMIN,
+    groupNumber:
+      authPayload.groupNumber === null || authPayload.groupNumber === undefined
+        ? null
+        : Number(authPayload.groupNumber),
+    isSuperAdmin: isSuperAdmin(authPayload),
+  };
+};
+
+export const ROLE_NAMES = {
+  superadmin: ROLE_SUPERADMIN,
+  groupAdmin: ROLE_GROUP_ADMIN,
 };

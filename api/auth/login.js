@@ -1,4 +1,4 @@
-import { createToken, validateCredentials } from "../_lib/auth.js";
+import { authenticateUser, createToken, getSafeAuthUser } from "../_lib/auth.js";
 import { readJsonBody } from "../_lib/request.js";
 import { getRequestIp, verifyTurnstileToken } from "../_lib/turnstile.js";
 
@@ -35,7 +35,16 @@ export default async function handler(req, res) {
     return;
   }
 
-  if (!validateCredentials(String(username), String(password))) {
+  let authUser = null;
+
+  try {
+    authUser = await authenticateUser(String(username), String(password));
+  } catch (error) {
+    res.status(500).json({ error: "Authentication error", detail: String(error) });
+    return;
+  }
+
+  if (!authUser) {
     res.status(401).json({ error: "Unauthorized" });
     return;
   }
@@ -45,6 +54,6 @@ export default async function handler(req, res) {
     return;
   }
 
-  const { token, expiresAt } = createToken(String(username));
-  res.status(200).json({ token, expiresAt });
+  const { token, expiresAt } = createToken(authUser);
+  res.status(200).json({ token, expiresAt, user: getSafeAuthUser(authUser) });
 }

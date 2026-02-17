@@ -21,6 +21,9 @@ export default function PageFooter({ isAuthenticated, isLoginRoute, onLogout }) 
               Inicio
             </Link>
           ) : null}
+          <Link className="footer-item footer-link" to="/login">
+            Acceso
+          </Link>
         </>
       )}
     </footer>
