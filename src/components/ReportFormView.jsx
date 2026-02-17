@@ -318,7 +318,7 @@ export default function ReportFormView({
       )}
 
       {canSubmit ? (
-        <form className="form" onSubmit={handleSubmit} noValidate>
+        <form className="form main-submit-form" onSubmit={handleSubmit} noValidate>
           {isGroupSelectionLocked ? (
             <input type="hidden" name="groupNumber" value={formData.groupNumber} />
           ) : (
