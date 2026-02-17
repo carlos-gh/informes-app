@@ -1,7 +1,12 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 
-export default function ProfileView({ authToken, onLogout }) {
+export default function ProfileView({
+  authToken,
+  onLogout,
+  theme = "dark",
+  onThemeChange = () => {},
+}) {
   const isAuthenticated = Boolean(authToken);
   const [formState, setFormState] = useState({
     currentPassword: "",
@@ -11,6 +16,7 @@ export default function ProfileView({ authToken, onLogout }) {
   const [formError, setFormError] = useState("");
   const [submitStatus, setSubmitStatus] = useState("idle");
   const [submitMessage, setSubmitMessage] = useState("");
+  const [themeSubmitMessage, setThemeSubmitMessage] = useState("");
 
   const updateForm = (field, value) => {
     setFormState((previous) => ({
@@ -92,6 +98,17 @@ export default function ProfileView({ authToken, onLogout }) {
     }
   };
 
+  const handleThemeSelect = (event) => {
+    const value = String(event.target.value || "");
+
+    if (value !== "dark" && value !== "light") {
+      return;
+    }
+
+    onThemeChange(value);
+    setThemeSubmitMessage("Tema actualizado correctamente.");
+  };
+
   if (!isAuthenticated) {
     return (
       <section>
@@ -113,6 +130,32 @@ export default function ProfileView({ authToken, onLogout }) {
           <p className="subtitle">Cambie su contraseña de acceso.</p>
         </div>
       </div>
+
+      <section className="config-theme">
+        <h2 className="config-section-title">Preferencias</h2>
+        <p className="config-section-description">
+          Personalice el tema visual de la aplicación.
+        </p>
+
+        <div className="field">
+          <label htmlFor="profile-theme">Tema predeterminado</label>
+          <select
+            id="profile-theme"
+            name="profile-theme"
+            value={theme}
+            onChange={handleThemeSelect}
+          >
+            <option value="dark">Oscuro (predeterminado)</option>
+            <option value="light">Claro</option>
+          </select>
+        </div>
+
+        {themeSubmitMessage ? (
+          <div className="feedback success" role="status">
+            {themeSubmitMessage}
+          </div>
+        ) : null}
+      </section>
 
       <section className="config-theme">
         <h2 className="config-section-title">Seguridad</h2>

@@ -70,6 +70,7 @@ export default function AdminView({ authToken, authUser, onLogout }) {
   const [submitStatus, setSubmitStatus] = useState("idle");
   const [submitMessage, setSubmitMessage] = useState("");
   const [groups, setGroups] = useState([]);
+  const [selectedGroupNumber, setSelectedGroupNumber] = useState("");
   const [adminForm, setAdminForm] = useState(() =>
     buildDefaultAdminForm(defaultMonthKey)
   );
@@ -85,11 +86,103 @@ export default function AdminView({ authToken, authUser, onLogout }) {
     return authUser?.groupNumber ? String(authUser.groupNumber) : "";
   }, [authUser?.groupNumber, isSuperAdmin]);
 
+  const availableGroupNumbers = useMemo(() => {
+    const groupSet = new Set();
+
+    groups.forEach((group) => {
+      const value = Number(group.groupNumber);
+
+      if (Number.isInteger(value) && value > 0) {
+        groupSet.add(value);
+      }
+    });
+
+    reports.forEach((report) => {
+      const value = Number(report.groupNumber);
+
+      if (Number.isInteger(value) && value > 0) {
+        groupSet.add(value);
+      }
+    });
+
+    periods.forEach((period) => {
+      const value = Number(period.groupNumber);
+
+      if (Number.isInteger(value) && value > 0) {
+        groupSet.add(value);
+      }
+    });
+
+    if (defaultAdminGroupNumber) {
+      const value = Number(defaultAdminGroupNumber);
+
+      if (Number.isInteger(value) && value > 0) {
+        groupSet.add(value);
+      }
+    }
+
+    return Array.from(groupSet).sort((a, b) => a - b);
+  }, [defaultAdminGroupNumber, groups, periods, reports]);
+
+  const activeGroupNumber = useMemo(() => {
+    if (!isSuperAdmin) {
+      const ownGroup = Number(defaultAdminGroupNumber);
+      return Number.isInteger(ownGroup) && ownGroup > 0 ? ownGroup : null;
+    }
+
+    const selectedValue = Number(selectedGroupNumber);
+
+    if (
+      Number.isInteger(selectedValue) &&
+      selectedValue > 0 &&
+      availableGroupNumbers.includes(selectedValue)
+    ) {
+      return selectedValue;
+    }
+
+    return availableGroupNumbers[0] || null;
+  }, [
+    availableGroupNumbers,
+    defaultAdminGroupNumber,
+    isSuperAdmin,
+    selectedGroupNumber,
+  ]);
+
+  const activeGroupLabel = useMemo(() => {
+    if (activeGroupNumber === null) {
+      return "Sin grupo";
+    }
+
+    const matchedGroup = groups.find(
+      (group) => Number(group.groupNumber) === Number(activeGroupNumber)
+    );
+
+    return matchedGroup?.name || `Grupo ${activeGroupNumber}`;
+  }, [activeGroupNumber, groups]);
+
+  const reportsForActiveGroup = useMemo(() => {
+    if (activeGroupNumber === null) {
+      return [];
+    }
+
+    return reports.filter(
+      (report) => Number(report.groupNumber) === Number(activeGroupNumber)
+    );
+  }, [activeGroupNumber, reports]);
+
   const closedPeriods = useMemo(() => {
+    if (activeGroupNumber === null) {
+      return [];
+    }
+
     return (periods || [])
-      .filter((period) => true === period.isClosed)
+      .filter(
+        (period) =>
+          true === period.isClosed &&
+          Number(period.groupNumber) === Number(activeGroupNumber)
+      )
       .sort((a, b) => b.reportMonthKey.localeCompare(a.reportMonthKey));
-  }, [periods]);
+  }, [activeGroupNumber, periods]);
 
   const closedMonthKeys = useMemo(() => {
     return closedPeriods.map((period) => period.reportMonthKey).filter(Boolean);
@@ -97,9 +190,9 @@ export default function AdminView({ authToken, authUser, onLogout }) {
 
   const reportMonthKeys = useMemo(() => {
     return Array.from(
-      new Set(reports.map((report) => report.reportMonthKey).filter(Boolean))
+      new Set(reportsForActiveGroup.map((report) => report.reportMonthKey).filter(Boolean))
     ).sort((a, b) => b.localeCompare(a));
-  }, [reports]);
+  }, [reportsForActiveGroup]);
 
   const closedMonthKeySet = useMemo(() => {
     return new Set(closedMonthKeys);
@@ -117,22 +210,28 @@ export default function AdminView({ authToken, authUser, onLogout }) {
     () => getReportingLabelFromKey(activeMonthKey),
     [activeMonthKey]
   );
-  const currentMonthLabel = useMemo(
-    () => getReportingLabelFromKey(defaultMonthKey),
-    [defaultMonthKey]
-  );
 
   const filteredReports = useMemo(() => {
-    return reports.filter((report) => report.reportMonthKey === activeMonthKey);
-  }, [reports, activeMonthKey]);
+    return reportsForActiveGroup.filter(
+      (report) => report.reportMonthKey === activeMonthKey
+    );
+  }, [reportsForActiveGroup, activeMonthKey]);
   const isActiveMonthClosed = useMemo(() => {
     return closedMonthKeySet.has(activeMonthKey);
   }, [activeMonthKey, closedMonthKeySet]);
 
+  const peopleForActiveGroup = useMemo(() => {
+    if (activeGroupNumber === null) {
+      return [];
+    }
+
+    return people.filter((person) => Number(person.groupNumber) === Number(activeGroupNumber));
+  }, [activeGroupNumber, people]);
+
   const reportSummaryByMonth = useMemo(() => {
     const summary = new Map();
 
-    reports.forEach((report) => {
+    reportsForActiveGroup.forEach((report) => {
       const monthKey = report.reportMonthKey;
 
       if (!monthKey) {
@@ -163,7 +262,7 @@ export default function AdminView({ authToken, authUser, onLogout }) {
     });
 
     return summary;
-  }, [reports]);
+  }, [reportsForActiveGroup]);
 
   const closedPeriodSummaries = useMemo(() => {
     return closedPeriods.map((period) => {
@@ -206,10 +305,10 @@ export default function AdminView({ authToken, authUser, onLogout }) {
 
   const lastMonthKeys = useMemo(() => {
     const keys = Array.from(
-      new Set(reports.map((report) => report.reportMonthKey).filter(Boolean))
+      new Set(reportsForActiveGroup.map((report) => report.reportMonthKey).filter(Boolean))
     ).sort((a, b) => b.localeCompare(a));
     return keys.slice(0, statsRange).reverse();
-  }, [reports, statsRange]);
+  }, [reportsForActiveGroup, statsRange]);
 
   const statsData = useMemo(() => {
     const base = lastMonthKeys.map((key) => ({
@@ -223,7 +322,7 @@ export default function AdminView({ authToken, authUser, onLogout }) {
 
     const summary = new Map(base.map((item) => [item.key, item]));
 
-    reports.forEach((report) => {
+    reportsForActiveGroup.forEach((report) => {
       if (!summary.has(report.reportMonthKey)) {
         return;
       }
@@ -250,7 +349,7 @@ export default function AdminView({ authToken, authUser, onLogout }) {
     });
 
     return Array.from(summary.values());
-  }, [reports, lastMonthKeys]);
+  }, [reportsForActiveGroup, lastMonthKeys]);
 
   const updateAdminForm = (field, value) => {
     setAdminForm((previous) => ({
@@ -260,12 +359,23 @@ export default function AdminView({ authToken, authUser, onLogout }) {
   };
 
   const resetAdminForm = (monthKey) => {
-    setAdminForm(buildDefaultAdminForm(monthKey, defaultAdminGroupNumber));
+    setAdminForm(
+      buildDefaultAdminForm(
+        monthKey,
+        activeGroupNumber !== null ? String(activeGroupNumber) : defaultAdminGroupNumber
+      )
+    );
     setEditingId(null);
     setFormErrors({});
   };
 
   const openNewModal = () => {
+    if (activeGroupNumber === null) {
+      setSubmitStatus("error");
+      setSubmitMessage("Seleccione un grupo para agregar informes.");
+      return;
+    }
+
     if (isActiveMonthClosed) {
       setSubmitStatus("error");
       setSubmitMessage("Este periodo está completado y solo permite vista previa.");
@@ -308,11 +418,7 @@ export default function AdminView({ authToken, authUser, onLogout }) {
       nextErrors.courses = "Ingrese un número válido.";
     }
 
-    if (
-      adminForm.groupNumber === "" ||
-      Number.isNaN(Number(adminForm.groupNumber)) ||
-      Number(adminForm.groupNumber) < 1
-    ) {
+    if (activeGroupNumber === null) {
       nextErrors.groupNumber = "Seleccione un grupo válido.";
     }
 
@@ -449,15 +555,34 @@ export default function AdminView({ authToken, authUser, onLogout }) {
   }, [authToken]);
 
   useEffect(() => {
+    if (!isSuperAdmin) {
+      setSelectedGroupNumber(defaultAdminGroupNumber || "");
+      return;
+    }
+
+    if (!selectedGroupNumber && availableGroupNumbers.length > 0) {
+      setSelectedGroupNumber(String(availableGroupNumbers[0]));
+    }
+  }, [
+    availableGroupNumbers,
+    defaultAdminGroupNumber,
+    isSuperAdmin,
+    selectedGroupNumber,
+  ]);
+
+  useEffect(() => {
     if (editingId) {
       return;
     }
 
     setAdminForm((previous) => ({
       ...previous,
-      groupNumber: previous.groupNumber || defaultAdminGroupNumber,
+      groupNumber:
+        activeGroupNumber !== null
+          ? String(activeGroupNumber)
+          : previous.groupNumber || defaultAdminGroupNumber,
     }));
-  }, [defaultAdminGroupNumber, editingId]);
+  }, [activeGroupNumber, defaultAdminGroupNumber, editingId]);
 
   useEffect(() => {
     if (!selectedMonthKey || !availableMonthKeys.includes(selectedMonthKey)) {
@@ -507,7 +632,7 @@ export default function AdminView({ authToken, authUser, onLogout }) {
 
     if (
       !window.confirm(
-        `¿Desea cerrar el periodo de ${activeMonthLabel}? El mes quedará en modo solo vista previa.`
+        `¿Desea cerrar el periodo de ${activeMonthLabel} para ${activeGroupLabel}? El mes quedará en modo solo vista previa.`
       )
     ) {
       return;
@@ -526,6 +651,7 @@ export default function AdminView({ authToken, authUser, onLogout }) {
         body: JSON.stringify({
           action: "closePeriod",
           reportMonthKey: activeMonthKey,
+          groupNumber: activeGroupNumber,
         }),
       });
 
@@ -566,7 +692,7 @@ export default function AdminView({ authToken, authUser, onLogout }) {
 
     if (
       !window.confirm(
-        `¿Desea reabrir el periodo de ${activeMonthLabel}? El mes volverá a estar habilitado para edición.`
+        `¿Desea reabrir el periodo de ${activeMonthLabel} para ${activeGroupLabel}? El mes volverá a estar habilitado para edición.`
       )
     ) {
       return;
@@ -585,6 +711,7 @@ export default function AdminView({ authToken, authUser, onLogout }) {
         body: JSON.stringify({
           action: "reopenPeriod",
           reportMonthKey: activeMonthKey,
+          groupNumber: activeGroupNumber,
         }),
       });
 
@@ -627,16 +754,16 @@ export default function AdminView({ authToken, authUser, onLogout }) {
       filteredReports.map((report) => normalizeName(report.name || ""))
     );
 
-    return people.filter((person) => {
+    return peopleForActiveGroup.filter((person) => {
       const normalized = normalizeName(person.name || "");
       return normalized && !reportedNames.has(normalized);
     });
-  }, [filteredReports, people]);
+  }, [filteredReports, peopleForActiveGroup]);
   const shouldValidatePendingPeople = activeMonthKey === defaultMonthKey;
 
   const closePeriodBlockReason = useMemo(() => {
-    if (!isSuperAdmin) {
-      return "Solo el superadmin puede cerrar periodos.";
+    if (activeGroupNumber === null) {
+      return "Seleccione un grupo para gestionar periodos.";
     }
 
     if (isActiveMonthClosed) {
@@ -652,7 +779,7 @@ export default function AdminView({ authToken, authUser, onLogout }) {
         return "No se pudo validar la lista de pendientes.";
       }
 
-      if (0 === people.length) {
+      if (0 === peopleForActiveGroup.length) {
         return "Debe registrar personas para validar pendientes.";
       }
 
@@ -663,21 +790,21 @@ export default function AdminView({ authToken, authUser, onLogout }) {
 
     return "";
   }, [
+    activeGroupNumber,
     defaultMonthKey,
     filteredReports.length,
     activeMonthKey,
-    isSuperAdmin,
     isActiveMonthClosed,
     pendingError,
     pendingPeople.length,
-    people.length,
+    peopleForActiveGroup.length,
     shouldValidatePendingPeople,
   ]);
 
   const canClosePeriod = "" === closePeriodBlockReason;
   const reopenPeriodBlockReason = useMemo(() => {
-    if (!isSuperAdmin) {
-      return "Solo el superadmin puede reabrir periodos.";
+    if (activeGroupNumber === null) {
+      return "Seleccione un grupo para gestionar periodos.";
     }
 
     if (!isActiveMonthClosed) {
@@ -685,13 +812,15 @@ export default function AdminView({ authToken, authUser, onLogout }) {
     }
 
     return "";
-  }, [isActiveMonthClosed, isSuperAdmin]);
+  }, [activeGroupNumber, isActiveMonthClosed]);
   const canReopenPeriod = "" === reopenPeriodBlockReason;
 
   const handleDownloadPdf = () => {
-    const monthKey = defaultMonthKey;
-    const monthLabel = currentMonthLabel;
-    const monthReports = reports.filter((report) => report.reportMonthKey === monthKey);
+    const monthKey = activeMonthKey;
+    const monthLabel = activeMonthLabel;
+    const monthReports = reportsForActiveGroup.filter(
+      (report) => report.reportMonthKey === monthKey
+    );
 
     const document = new jsPDF({ unit: "pt", format: "a4" });
     const pageWidth = document.internal.pageSize.getWidth();
@@ -724,7 +853,7 @@ export default function AdminView({ authToken, authUser, onLogout }) {
       document.setFont("helvetica", "normal");
       document.setFontSize(10);
       document.setTextColor(40, 40, 40);
-      document.text("Informes Grupo 4", marginX, marginY);
+      document.text(`Informes ${activeGroupLabel}`, marginX, marginY);
       const monthWidth = document.getTextWidth(monthLabel);
       document.text(monthLabel, pageWidth - marginX - monthWidth, marginY);
 
@@ -733,7 +862,7 @@ export default function AdminView({ authToken, authUser, onLogout }) {
       document.setFont("helvetica", "bold");
       document.setFontSize(12);
       document.setTextColor(255, 255, 255);
-      const title = `INFORMES GRUPO 4 / MES: ${monthLabel.toUpperCase()}`;
+      const title = `INFORMES ${activeGroupLabel.toUpperCase()} / MES: ${monthLabel.toUpperCase()}`;
       document.text(title, pageWidth / 2, marginY + 38, { align: "center" });
     };
 
@@ -855,7 +984,11 @@ export default function AdminView({ authToken, authUser, onLogout }) {
       { fill: true, fillColor: [245, 245, 245], bold: true, textColor: [20, 20, 20] }
     );
 
-    document.save(`informes-${monthKey}.pdf`);
+    const safeGroupLabel = activeGroupLabel
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, "")
+      .replace(/\s+/g, "-");
+    document.save(`informes-${safeGroupLabel}-${monthKey}.pdf`);
   };
 
   const handleEdit = (report) => {
@@ -868,7 +1001,12 @@ export default function AdminView({ authToken, authUser, onLogout }) {
     setEditingId(report.id);
     setAdminForm({
       reportMonthKey: report.reportMonthKey || defaultMonthKey,
-      groupNumber: report.groupNumber ? String(report.groupNumber) : defaultAdminGroupNumber,
+      groupNumber:
+        report.groupNumber !== null && report.groupNumber !== undefined
+          ? String(report.groupNumber)
+          : activeGroupNumber !== null
+          ? String(activeGroupNumber)
+          : defaultAdminGroupNumber,
       name: report.name || "",
       participation: report.participation || "",
       designation: report.designation || "Publicador",
@@ -933,6 +1071,12 @@ export default function AdminView({ authToken, authUser, onLogout }) {
     event.preventDefault();
     setSubmitMessage("");
 
+    if (activeGroupNumber === null) {
+      setSubmitStatus("error");
+      setSubmitMessage("Seleccione un grupo para guardar informes.");
+      return;
+    }
+
     if (closedMonthKeySet.has(adminForm.reportMonthKey)) {
       setSubmitStatus("error");
       setSubmitMessage("Este periodo está completado y solo permite vista previa.");
@@ -949,7 +1093,7 @@ export default function AdminView({ authToken, authUser, onLogout }) {
 
     const payload = {
       reportMonthKey: adminForm.reportMonthKey,
-      groupNumber: Number(adminForm.groupNumber),
+      groupNumber: Number(activeGroupNumber),
       name: adminForm.name.trim(),
       participation: adminForm.participation,
       designation: adminForm.designation,
@@ -1020,13 +1164,48 @@ export default function AdminView({ authToken, authUser, onLogout }) {
         </div>
       </div>
 
+      <section className="config-theme">
+        {isSuperAdmin ? (
+          <div className="field">
+            <label htmlFor="admin-group-context">Grupo visible</label>
+            <select
+              id="admin-group-context"
+              name="admin-group-context"
+              value={activeGroupNumber !== null ? String(activeGroupNumber) : ""}
+              onChange={(event) => setSelectedGroupNumber(event.target.value)}
+            >
+              {availableGroupNumbers.length === 0 ? (
+                <option value="">Sin grupos disponibles</option>
+              ) : null}
+              {availableGroupNumbers.map((groupNumber) => {
+                const matchedGroup = groups.find(
+                  (group) => Number(group.groupNumber) === Number(groupNumber)
+                );
+                const groupName = matchedGroup?.name || `Grupo ${groupNumber}`;
+
+                return (
+                  <option key={groupNumber} value={groupNumber}>
+                    {groupName} (Grupo {groupNumber})
+                  </option>
+                );
+              })}
+            </select>
+          </div>
+        ) : (
+          <p className="config-section-description">
+            Mostrando informes de: <strong>{activeGroupLabel}</strong>
+          </p>
+        )}
+      </section>
+
       {!isDetailView ? (
         <>
           <section className="closed-periods">
             <div className="closed-periods-header">
               <h2 className="closed-periods-title">Periodos abiertos</h2>
               <p className="closed-periods-subtitle">
-                Seleccione un periodo abierto para registrar o editar informes.
+                {activeGroupLabel}: seleccione un periodo abierto para registrar o editar
+                informes.
               </p>
             </div>
             <div className="closed-periods-list">
@@ -1067,7 +1246,7 @@ export default function AdminView({ authToken, authUser, onLogout }) {
             <div className="closed-periods-header">
               <h2 className="closed-periods-title">Meses completados</h2>
               <p className="closed-periods-subtitle">
-                Seleccione un mes para abrir sus detalles.
+                {activeGroupLabel}: seleccione un mes para abrir sus detalles.
               </p>
             </div>
             <div className="closed-periods-list">
@@ -1157,35 +1336,15 @@ export default function AdminView({ authToken, authUser, onLogout }) {
                 ) : null}
               </div>
 
-              <div className="field">
-                <label htmlFor="admin-group">
-                  Grupo <span className="required">*</span>
-                </label>
-                <select
-                  id="admin-group"
-                  name="admin-group"
-                  value={adminForm.groupNumber}
-                  onChange={(event) =>
-                    updateAdminForm("groupNumber", event.target.value)
-                  }
-                  aria-invalid={Boolean(formErrors.groupNumber)}
-                  aria-describedby={formErrors.groupNumber ? "group-error" : undefined}
-                  disabled={!isSuperAdmin}
-                  required
-                >
-                  <option value="">Seleccione</option>
-                  {groups.map((group) => (
-                    <option key={group.groupNumber} value={group.groupNumber}>
-                      {group.name || `Grupo ${group.groupNumber}`} (Grupo {group.groupNumber})
-                    </option>
-                  ))}
-                </select>
-                {formErrors.groupNumber ? (
-                  <span id="group-error" className="error">
-                    {formErrors.groupNumber}
-                  </span>
-                ) : null}
-              </div>
+              <input
+                type="hidden"
+                name="admin-group"
+                value={activeGroupNumber !== null ? String(activeGroupNumber) : ""}
+              />
+
+              <p className="config-section-description">
+                Grupo asignado: <strong>{activeGroupLabel}</strong>
+              </p>
 
               <div className="field">
                 <label htmlFor="admin-name">
@@ -1378,12 +1537,12 @@ export default function AdminView({ authToken, authUser, onLogout }) {
                   {pendingError}
                 </div>
               ) : null}
-              {!pendingError && people.length === 0 ? (
+              {!pendingError && peopleForActiveGroup.length === 0 ? (
                 <p className="subtitle">
-                  No hay personas registradas para comparar.
+                  No hay personas registradas en {activeGroupLabel} para comparar.
                 </p>
               ) : null}
-              {!pendingError && people.length > 0 ? (
+              {!pendingError && peopleForActiveGroup.length > 0 ? (
                 <>
                   <p className="subtitle">
                     Mes seleccionado: {activeMonthLabel}
@@ -1581,10 +1740,11 @@ export default function AdminView({ authToken, authUser, onLogout }) {
       {isDetailView ? (
         <div id="month-details">
           <AdminMonthDetailView
+            activeGroupLabel={activeGroupLabel}
             activeMonthLabel={activeMonthLabel}
             canClosePeriod={canClosePeriod}
             canReopenPeriod={canReopenPeriod}
-            canDownloadPdf={activeMonthKey === defaultMonthKey}
+            canDownloadPdf={activeGroupNumber !== null && filteredReports.length > 0}
             closePeriodBlockReason={closePeriodBlockReason}
             reopenPeriodBlockReason={reopenPeriodBlockReason}
             filteredReports={filteredReports}

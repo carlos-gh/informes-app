@@ -240,8 +240,6 @@ export default function App() {
                   authToken={authToken}
                   authUser={authUser}
                   onLogout={handleLogout}
-                  theme={theme}
-                  onThemeChange={handleThemeChange}
                 />
               }
             />
@@ -257,7 +255,14 @@ export default function App() {
             />
             <Route
               path="/profile"
-              element={<ProfileView authToken={authToken} onLogout={handleLogout} />}
+              element={
+                <ProfileView
+                  authToken={authToken}
+                  onLogout={handleLogout}
+                  theme={theme}
+                  onThemeChange={handleThemeChange}
+                />
+              }
             />
             <Route path="*" element={<NotFoundView />} />
           </Routes>

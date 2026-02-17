@@ -36,17 +36,58 @@ const ensureReportsTable = async () => {
 
 const ensureReportPeriodsTable = async () => {
   await sql`
-    CREATE TABLE IF NOT EXISTS report_periods (
-      report_month_key TEXT PRIMARY KEY,
+    CREATE TABLE IF NOT EXISTS report_periods_by_group (
+      report_month_key TEXT NOT NULL,
+      group_number INTEGER NOT NULL,
       report_month_label TEXT NOT NULL,
       is_closed BOOLEAN NOT NULL DEFAULT FALSE,
-      closed_at TIMESTAMPTZ
+      closed_at TIMESTAMPTZ,
+      PRIMARY KEY (report_month_key, group_number)
     );
   `;
 
-  await sql`ALTER TABLE report_periods ADD COLUMN IF NOT EXISTS report_month_label TEXT;`;
-  await sql`ALTER TABLE report_periods ADD COLUMN IF NOT EXISTS is_closed BOOLEAN NOT NULL DEFAULT FALSE;`;
-  await sql`ALTER TABLE report_periods ADD COLUMN IF NOT EXISTS closed_at TIMESTAMPTZ;`;
+  await sql`ALTER TABLE report_periods_by_group ADD COLUMN IF NOT EXISTS report_month_label TEXT;`;
+  await sql`ALTER TABLE report_periods_by_group ADD COLUMN IF NOT EXISTS is_closed BOOLEAN NOT NULL DEFAULT FALSE;`;
+  await sql`ALTER TABLE report_periods_by_group ADD COLUMN IF NOT EXISTS closed_at TIMESTAMPTZ;`;
+  await sql`ALTER TABLE report_periods_by_group ADD COLUMN IF NOT EXISTS group_number INTEGER;`;
+  await sql`CREATE INDEX IF NOT EXISTS report_periods_by_group_month_idx ON report_periods_by_group (report_month_key);`;
+  await sql`CREATE INDEX IF NOT EXISTS report_periods_by_group_group_idx ON report_periods_by_group (group_number);`;
+
+  const legacyTable = await sql`
+    SELECT to_regclass('public.report_periods') IS NOT NULL AS "exists";
+  `;
+
+  if (true !== Boolean(legacyTable.rows[0]?.exists)) {
+    return;
+  }
+
+  await sql`
+    INSERT INTO report_periods_by_group (
+      report_month_key,
+      group_number,
+      report_month_label,
+      is_closed,
+      closed_at
+    )
+    SELECT
+      legacy.report_month_key,
+      grouped.group_number,
+      legacy.report_month_label,
+      legacy.is_closed,
+      legacy.closed_at
+    FROM report_periods legacy
+    INNER JOIN (
+      SELECT DISTINCT
+        report_month_key,
+        group_number
+      FROM reports
+      WHERE group_number IS NOT NULL
+    ) grouped
+      ON grouped.report_month_key = legacy.report_month_key
+    WHERE legacy.is_closed = TRUE
+    ON CONFLICT (report_month_key, group_number)
+    DO NOTHING;
+  `;
 };
 
 const ensureReportSchema = async () => {
@@ -139,35 +180,66 @@ const hasAuthHeader = (req) => {
   return Boolean(req.headers.authorization);
 };
 
-const isReportPeriodClosed = async (reportMonthKey) => {
-  if (!reportMonthKey) {
+const isReportPeriodClosed = async (reportMonthKey, groupNumber) => {
+  if (!reportMonthKey || groupNumber === null) {
     return false;
   }
 
   const result = await sql`
     SELECT
       is_closed AS "isClosed"
-    FROM report_periods
+    FROM report_periods_by_group
     WHERE report_month_key = ${reportMonthKey}
+      AND group_number = ${groupNumber}
     LIMIT 1;
   `;
 
   return true === Boolean(result.rows[0]?.isClosed);
 };
 
-const getClosedReportPeriods = async () => {
+const getClosedReportPeriods = async (groupNumber = null) => {
+  if (groupNumber !== null) {
+    const scopedResult = await sql`
+      SELECT
+        report_month_key AS "reportMonthKey",
+        report_month_label AS "reportMonthLabel",
+        group_number AS "groupNumber",
+        is_closed AS "isClosed",
+        closed_at AS "closedAt"
+      FROM report_periods_by_group
+      WHERE is_closed = TRUE
+        AND group_number = ${groupNumber}
+      ORDER BY report_month_key DESC;
+    `;
+
+    return scopedResult.rows;
+  }
+
   const result = await sql`
     SELECT
       report_month_key AS "reportMonthKey",
       report_month_label AS "reportMonthLabel",
+      group_number AS "groupNumber",
       is_closed AS "isClosed",
       closed_at AS "closedAt"
-    FROM report_periods
+    FROM report_periods_by_group
     WHERE is_closed = TRUE
     ORDER BY report_month_key DESC;
   `;
 
   return result.rows;
+};
+
+const getActionGroupNumber = (auth, bodyGroupNumber) => {
+  if (!auth) {
+    return null;
+  }
+
+  if (isSuperAdmin(auth)) {
+    return parseGroupNumber(bodyGroupNumber);
+  }
+
+  return parseGroupNumber(auth.groupNumber);
 };
 
 const ensureGroupExists = async (groupNumber) => {
@@ -255,16 +327,19 @@ export default async function handler(req, res) {
           `;
         }
 
-        const closedPeriods = await getClosedReportPeriods();
-        const scopedClosedPeriods = isSuperAdmin(auth)
-          ? closedPeriods
-          : closedPeriods.filter((period) =>
-              reportsResult.rows.some(
-                (report) => report.reportMonthKey === period.reportMonthKey
-              )
-            );
+        let closedPeriods = [];
 
-        res.status(200).json({ items: reportsResult.rows, periods: scopedClosedPeriods });
+        if (isSuperAdmin(auth)) {
+          closedPeriods = await getClosedReportPeriods();
+        } else {
+          const scopedGroupNumber = parseGroupNumber(auth.groupNumber);
+          closedPeriods =
+            scopedGroupNumber === null
+              ? []
+              : await getClosedReportPeriods(scopedGroupNumber);
+        }
+
+        res.status(200).json({ items: reportsResult.rows, periods: closedPeriods });
       } catch (error) {
         res.status(500).json({ error: "Database error", detail: String(error) });
       }
@@ -294,7 +369,14 @@ export default async function handler(req, res) {
           return;
         }
 
-        if (!isSuperAdmin(auth)) {
+        const actionGroupNumber = getActionGroupNumber(auth, body.groupNumber);
+
+        if (actionGroupNumber === null || !(await ensureGroupExists(actionGroupNumber))) {
+          res.status(400).json({ error: "Invalid group" });
+          return;
+        }
+
+        if (!isSuperAdmin(auth) && Number(auth.groupNumber) !== Number(actionGroupNumber)) {
           res.status(403).json({ error: "Forbidden" });
           return;
         }
@@ -311,7 +393,8 @@ export default async function handler(req, res) {
           const monthReports = await sql`
             SELECT COUNT(*)::int AS total
             FROM reports
-            WHERE report_month_key = ${reportMonthKey};
+            WHERE report_month_key = ${reportMonthKey}
+              AND group_number = ${actionGroupNumber};
           `;
 
           const totalReports = Number(monthReports.rows[0]?.total || 0);
@@ -322,34 +405,37 @@ export default async function handler(req, res) {
           }
 
           await sql`
-            INSERT INTO report_periods (
+            INSERT INTO report_periods_by_group (
               report_month_key,
+              group_number,
               report_month_label,
               is_closed,
               closed_at
             )
             VALUES (
               ${reportMonthKey},
+              ${actionGroupNumber},
               ${reportMonthLabel},
               TRUE,
               NOW()
             )
-            ON CONFLICT (report_month_key)
+            ON CONFLICT (report_month_key, group_number)
             DO UPDATE SET
               report_month_label = EXCLUDED.report_month_label,
               is_closed = TRUE,
-              closed_at = COALESCE(report_periods.closed_at, NOW());
+              closed_at = COALESCE(report_periods_by_group.closed_at, NOW());
           `;
 
-          res.status(200).json({ ok: true, reportMonthKey });
+          res.status(200).json({ ok: true, reportMonthKey, groupNumber: actionGroupNumber });
           return;
         }
 
         const periodResult = await sql`
           SELECT
             is_closed AS "isClosed"
-          FROM report_periods
+          FROM report_periods_by_group
           WHERE report_month_key = ${reportMonthKey}
+            AND group_number = ${actionGroupNumber}
           LIMIT 1;
         `;
 
@@ -359,15 +445,16 @@ export default async function handler(req, res) {
         }
 
         await sql`
-          UPDATE report_periods
+          UPDATE report_periods_by_group
           SET
             report_month_label = ${reportMonthLabel},
             is_closed = FALSE,
             closed_at = NULL
-          WHERE report_month_key = ${reportMonthKey};
+          WHERE report_month_key = ${reportMonthKey}
+            AND group_number = ${actionGroupNumber};
         `;
 
-        res.status(200).json({ ok: true, reportMonthKey });
+        res.status(200).json({ ok: true, reportMonthKey, groupNumber: actionGroupNumber });
         return;
       }
 
@@ -415,7 +502,7 @@ export default async function handler(req, res) {
         return;
       }
 
-      if (!auth && (await isReportPeriodClosed(reportMonthKey))) {
+      if (!auth && (await isReportPeriodClosed(reportMonthKey, reportGroupNumber))) {
         res.status(409).json({ error: "Report period is closed" });
         return;
       }
@@ -529,12 +616,17 @@ export default async function handler(req, res) {
         return;
       }
 
-      if (await isReportPeriodClosed(String(existingReport.reportMonthKey || ""))) {
+      if (
+        await isReportPeriodClosed(
+          String(existingReport.reportMonthKey || ""),
+          parseGroupNumber(existingReport.groupNumber)
+        )
+      ) {
         res.status(409).json({ error: "Report period is closed" });
         return;
       }
 
-      if (await isReportPeriodClosed(reportMonthKey)) {
+      if (await isReportPeriodClosed(reportMonthKey, reportGroupNumber)) {
         res.status(409).json({ error: "Report period is closed" });
         return;
       }
@@ -599,7 +691,12 @@ export default async function handler(req, res) {
         return;
       }
 
-      if (await isReportPeriodClosed(String(existingReport.reportMonthKey || ""))) {
+      if (
+        await isReportPeriodClosed(
+          String(existingReport.reportMonthKey || ""),
+          parseGroupNumber(existingReport.groupNumber)
+        )
+      ) {
         res.status(409).json({ error: "Report period is closed" });
         return;
       }

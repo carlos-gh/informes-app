@@ -16,6 +16,7 @@ const ADMIN_TABLE_SKELETON_COLUMNS = [
 ];
 
 export default function AdminMonthDetailView({
+  activeGroupLabel,
   activeMonthLabel,
   canClosePeriod,
   canReopenPeriod,
@@ -45,7 +46,7 @@ export default function AdminMonthDetailView({
             Volver al resumen
           </button>
           <span className="month-caption">
-            Detalle del mes: {activeMonthLabel}
+            Detalle del mes: {activeMonthLabel} · {activeGroupLabel}
             {isActiveMonthClosed ? " (completado)" : ""}
           </span>
         </div>

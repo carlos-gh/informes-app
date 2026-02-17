@@ -46,8 +46,6 @@ export default function ConfigView({
   authToken,
   authUser,
   onLogout,
-  theme = "dark",
-  onThemeChange = () => {},
 }) {
   const [people, setPeople] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -445,16 +443,6 @@ export default function ConfigView({
     }
   };
 
-  const handleThemeSelect = (event) => {
-    const value = event.target.value;
-
-    if (value !== "dark" && value !== "light") {
-      return;
-    }
-
-    onThemeChange(value);
-  };
-
   if (!isAuthenticated) {
     return (
       <section>
@@ -474,29 +462,10 @@ export default function ConfigView({
           <p className="brand">Configuraciones</p>
           <h1 className="title">Configuraciones</h1>
           <p className="subtitle">
-            Administre preferencias de la aplicación y parámetros del sistema.
+            Administre los parámetros del sistema.
           </p>
         </div>
       </div>
-
-      <section className="config-theme">
-        <h2 className="config-section-title">Tema</h2>
-        <p className="config-section-description">
-          Defina si desea usar tema oscuro o claro en esta aplicación.
-        </p>
-        <div className="field">
-          <label htmlFor="config-theme">Tema predeterminado</label>
-          <select
-            id="config-theme"
-            name="config-theme"
-            value={theme}
-            onChange={handleThemeSelect}
-          >
-            <option value="dark">Oscuro (predeterminado)</option>
-            <option value="light">Claro</option>
-          </select>
-        </div>
-      </section>
 
       {isSuperAdmin ? (
         <>
