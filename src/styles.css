@@ -1,5 +1,7 @@
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap");
+
 :root {
-  font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  font-family: "Plus Jakarta Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
   color: #e2e8f0;
   background-color: #0b1120;
   overflow: hidden;
@@ -570,6 +572,7 @@ input:disabled {
   border-radius: 14px;
   border: 1px solid rgba(148, 163, 184, 0.25);
   background: rgba(148, 163, 184, 0.08);
+  margin-bottom: 15px;
 }
 
 .closed-periods-header {
