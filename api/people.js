@@ -84,6 +84,28 @@ const ensureGroupExists = async (groupNumber) => {
   return 0 < result.rows.length;
 };
 
+const isGroupSuperintendent = async (auth) => {
+  if (!auth || isSuperAdmin(auth)) {
+    return false;
+  }
+
+  const authGroupNumber = parseGroupNumber(auth.groupNumber);
+
+  if (authGroupNumber === null || !auth.userId) {
+    return false;
+  }
+
+  const result = await sql`
+    SELECT group_number
+    FROM groups
+    WHERE group_number = ${authGroupNumber}
+      AND superintendent_user_id = ${auth.userId}
+    LIMIT 1;
+  `;
+
+  return 0 < result.rows.length;
+};
+
 export default async function handler(req, res) {
   try {
     await ensureIdentitySchema();
@@ -113,8 +135,15 @@ export default async function handler(req, res) {
         return;
       }
 
-      if (auth.groupNumber === null || auth.groupNumber === undefined) {
-        res.status(200).json({ items: [] });
+      const authGroupNumber = parseGroupNumber(auth.groupNumber);
+
+      if (authGroupNumber === null) {
+        res.status(403).json({ error: "Forbidden" });
+        return;
+      }
+
+      if (!(await isGroupSuperintendent(auth))) {
+        res.status(403).json({ error: "Forbidden" });
         return;
       }
 
@@ -126,7 +155,7 @@ export default async function handler(req, res) {
           designation,
           created_at AS "createdAt"
         FROM people
-        WHERE group_number = ${auth.groupNumber}
+        WHERE group_number = ${authGroupNumber}
         ORDER BY name ASC;
       `;
 
@@ -134,10 +163,7 @@ export default async function handler(req, res) {
       return;
     }
 
-    if (!isSuperAdmin(auth)) {
-      res.status(403).json({ error: "Forbidden" });
-      return;
-    }
+    const canManageAsSuperintendent = await isGroupSuperintendent(auth);
 
     if (req.method === "POST") {
       const body = await readJsonBody(req);
@@ -148,7 +174,7 @@ export default async function handler(req, res) {
       }
 
       const name = String(body.name || "").trim();
-      const groupNumber = parseGroupNumber(body.groupNumber);
+      let groupNumber = parseGroupNumber(body.groupNumber);
       const designation = String(body.designation || "").trim() || "Publicador";
 
       if (!name) {
@@ -156,9 +182,23 @@ export default async function handler(req, res) {
         return;
       }
 
-      if (groupNumber === null || !(await ensureGroupExists(groupNumber))) {
-        res.status(400).json({ error: "Invalid group number" });
-        return;
+      if (isSuperAdmin(auth)) {
+        if (groupNumber === null || !(await ensureGroupExists(groupNumber))) {
+          res.status(400).json({ error: "Invalid group number" });
+          return;
+        }
+      } else {
+        if (!canManageAsSuperintendent) {
+          res.status(403).json({ error: "Forbidden" });
+          return;
+        }
+
+        groupNumber = parseGroupNumber(auth.groupNumber);
+
+        if (groupNumber === null || !(await ensureGroupExists(groupNumber))) {
+          res.status(400).json({ error: "Invalid group number" });
+          return;
+        }
       }
 
       const result = await sql`
@@ -194,7 +234,7 @@ export default async function handler(req, res) {
       }
 
       const name = String(body.name || "").trim();
-      const groupNumber = parseGroupNumber(body.groupNumber);
+      let groupNumber = parseGroupNumber(body.groupNumber);
       const designation = String(body.designation || "").trim() || "Publicador";
 
       if (!name) {
@@ -202,9 +242,42 @@ export default async function handler(req, res) {
         return;
       }
 
-      if (groupNumber === null || !(await ensureGroupExists(groupNumber))) {
-        res.status(400).json({ error: "Invalid group number" });
+      const currentPerson = await sql`
+        SELECT group_number AS "groupNumber"
+        FROM people
+        WHERE id = ${personId}
+        LIMIT 1;
+      `;
+
+      const existingPerson = currentPerson.rows[0] || null;
+
+      if (!existingPerson) {
+        res.status(404).json({ error: "Person not found" });
         return;
+      }
+
+      if (isSuperAdmin(auth)) {
+        if (groupNumber === null || !(await ensureGroupExists(groupNumber))) {
+          res.status(400).json({ error: "Invalid group number" });
+          return;
+        }
+      } else {
+        if (!canManageAsSuperintendent) {
+          res.status(403).json({ error: "Forbidden" });
+          return;
+        }
+
+        const authGroupNumber = parseGroupNumber(auth.groupNumber);
+
+        if (
+          authGroupNumber === null ||
+          Number(existingPerson.groupNumber) !== Number(authGroupNumber)
+        ) {
+          res.status(403).json({ error: "Forbidden" });
+          return;
+        }
+
+        groupNumber = authGroupNumber;
       }
 
       const result = await sql`
@@ -234,11 +307,34 @@ export default async function handler(req, res) {
         return;
       }
 
-      const result = await sql`
-        DELETE FROM people
-        WHERE id = ${personId}
-        RETURNING id;
-      `;
+      let result = { rows: [] };
+
+      if (isSuperAdmin(auth)) {
+        result = await sql`
+          DELETE FROM people
+          WHERE id = ${personId}
+          RETURNING id;
+        `;
+      } else {
+        if (!canManageAsSuperintendent) {
+          res.status(403).json({ error: "Forbidden" });
+          return;
+        }
+
+        const authGroupNumber = parseGroupNumber(auth.groupNumber);
+
+        if (authGroupNumber === null) {
+          res.status(403).json({ error: "Forbidden" });
+          return;
+        }
+
+        result = await sql`
+          DELETE FROM people
+          WHERE id = ${personId}
+            AND group_number = ${authGroupNumber}
+          RETURNING id;
+        `;
+      }
 
       if (result.rows.length === 0) {
         res.status(404).json({ error: "Person not found" });

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
 const buildDefaultPersonForm = () => ({
@@ -70,9 +70,11 @@ export default function ConfigView({
 
   const isAuthenticated = Boolean(authToken);
   const isSuperAdmin = true === Boolean(authUser?.isSuperAdmin);
+  const managedGroupNumber = authUser?.groupNumber ? String(authUser.groupNumber) : "";
+  const canManagePeople = isSuperAdmin || Boolean(managedGroupNumber);
 
   const loadPeople = async () => {
-    if (!isAuthenticated || !isSuperAdmin) {
+    if (!isAuthenticated || !canManagePeople) {
       setPeople([]);
       return;
     }
@@ -93,6 +95,12 @@ export default function ConfigView({
         return;
       }
 
+      if (response.status === 403) {
+        setPeople([]);
+        setLoadError("No tiene permisos para gestionar personas.");
+        return;
+      }
+
       if (!response.ok) {
         throw new Error("Failed to load people");
       }
@@ -110,6 +118,8 @@ export default function ConfigView({
     if (!isAuthenticated || !isSuperAdmin) {
       setGroups([]);
       setGroupUsers([]);
+      setIsGroupsLoading(false);
+      setGroupsLoadError("");
       return;
     }
 
@@ -159,10 +169,13 @@ export default function ConfigView({
   useEffect(() => {
     loadPeople();
     loadGroups();
-  }, [authToken, isSuperAdmin]);
+  }, [authToken, canManagePeople, isSuperAdmin]);
 
   const resetForm = () => {
-    setFormState(buildDefaultPersonForm());
+    setFormState((previous) => ({
+      ...buildDefaultPersonForm(),
+      group: isSuperAdmin ? "" : managedGroupNumber,
+    }));
     setEditingId(null);
     setFormErrors({});
   };
@@ -195,12 +208,20 @@ export default function ConfigView({
       nextErrors.name = "El nombre es obligatorio.";
     }
 
-    if (
-      formState.group.trim().length === 0 ||
-      Number.isNaN(Number(formState.group)) ||
-      Number(formState.group) < 1
+    if (isSuperAdmin) {
+      if (
+        formState.group.trim().length === 0 ||
+        Number.isNaN(Number(formState.group)) ||
+        Number(formState.group) < 1
+      ) {
+        nextErrors.group = "Seleccione un grupo válido.";
+      }
+    } else if (
+      managedGroupNumber.trim().length === 0 ||
+      Number.isNaN(Number(managedGroupNumber)) ||
+      Number(managedGroupNumber) < 1
     ) {
-      nextErrors.group = "Seleccione un grupo válido.";
+      nextErrors.group = "No tiene un grupo válido asignado.";
     }
 
     setFormErrors(nextErrors);
@@ -211,7 +232,11 @@ export default function ConfigView({
     setEditingId(person.id);
     setFormState({
       name: person.name || "",
-      group: person.groupNumber ? String(person.groupNumber) : "",
+      group: isSuperAdmin
+        ? person.groupNumber
+          ? String(person.groupNumber)
+          : ""
+        : managedGroupNumber,
       designation: person.designation || "Publicador",
     });
     setSubmitStatus("idle");
@@ -273,7 +298,11 @@ export default function ConfigView({
 
     const payload = {
       name: formState.name.trim(),
-      groupNumber: formState.group.trim() ? Number(formState.group) : null,
+      groupNumber: isSuperAdmin
+        ? formState.group.trim()
+          ? Number(formState.group)
+          : null
+        : Number(managedGroupNumber),
       designation: formState.designation,
     };
 
@@ -443,6 +472,28 @@ export default function ConfigView({
     }
   };
 
+  const peopleByGroup = useMemo(() => {
+    const groupMap = new Map();
+
+    people.forEach((person) => {
+      const groupValue = Number(person.groupNumber);
+      const groupNumber = Number.isInteger(groupValue) && groupValue > 0 ? groupValue : 0;
+
+      if (!groupMap.has(groupNumber)) {
+        groupMap.set(groupNumber, []);
+      }
+
+      groupMap.get(groupNumber).push(person);
+    });
+
+    return Array.from(groupMap.entries())
+      .sort((a, b) => a[0] - b[0])
+      .map(([groupNumber, items]) => ({
+        groupNumber,
+        items,
+      }));
+  }, [people]);
+
   if (!isAuthenticated) {
     return (
       <section>
@@ -468,185 +519,217 @@ export default function ConfigView({
       </div>
 
       {isSuperAdmin ? (
-        <>
-          <section className="config-people">
-            <div className="config-section-head">
-              <div>
-                <h2 className="config-section-title">Grupos</h2>
-                <p className="config-section-description">
-                  Cree grupos y asigne su superintendente responsable.
-                </p>
-              </div>
-              <div className="config-section-actions">
-                <span className="config-total">Total: {groups.length}</span>
-                <button
-                  className="secondary-button"
-                  type="button"
-                  onClick={openNewGroupModal}
-                >
-                  Agregar grupo
-                </button>
-              </div>
+        <section className="config-people">
+          <div className="config-section-head">
+            <div>
+              <h2 className="config-section-title">Grupos</h2>
+              <p className="config-section-description">
+                Cree grupos y asigne su superintendente responsable.
+              </p>
             </div>
+            <div className="config-section-actions">
+              <span className="config-total">Total: {groups.length}</span>
+              <button
+                className="secondary-button"
+                type="button"
+                onClick={openNewGroupModal}
+              >
+                Agregar grupo
+              </button>
+            </div>
+          </div>
 
-            <div className="table-wrapper">
-              <table className="table">
-                <thead>
+          <div className="table-wrapper">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>No.</th>
+                  <th>Grupo</th>
+                  <th>Nombre</th>
+                  <th>Superintendente</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {isGroupsLoading
+                  ? GROUP_TABLE_SKELETON_ROWS.map((rowIndex) => (
+                      <tr key={`group-skeleton-${rowIndex}`} className="table-skeleton">
+                        {GROUP_TABLE_SKELETON_COLUMNS.map((size, cellIndex) => (
+                          <td key={`group-skeleton-cell-${rowIndex}-${cellIndex}`}>
+                            <span className={`skeleton-line ${size}`} />
+                          </td>
+                        ))}
+                      </tr>
+                    ))
+                  : null}
+                {!isGroupsLoading && groupsLoadError ? (
                   <tr>
-                    <th>No.</th>
-                    <th>Grupo</th>
-                    <th>Nombre</th>
-                    <th>Superintendente</th>
-                    <th>Acciones</th>
+                    <td colSpan={5}>{groupsLoadError}</td>
                   </tr>
-                </thead>
-                <tbody>
-                  {isGroupsLoading
-                    ? GROUP_TABLE_SKELETON_ROWS.map((rowIndex) => (
-                        <tr key={`group-skeleton-${rowIndex}`} className="table-skeleton">
-                          {GROUP_TABLE_SKELETON_COLUMNS.map((size, cellIndex) => (
-                            <td key={`group-skeleton-cell-${rowIndex}-${cellIndex}`}>
-                              <span className={`skeleton-line ${size}`} />
-                            </td>
-                          ))}
-                        </tr>
-                      ))
-                    : null}
-                  {!isGroupsLoading && groupsLoadError ? (
-                    <tr>
-                      <td colSpan={5}>{groupsLoadError}</td>
+                ) : null}
+                {!isGroupsLoading && !groupsLoadError && groups.length === 0 ? (
+                  <tr>
+                    <td colSpan={5}>No hay grupos registrados.</td>
+                  </tr>
+                ) : null}
+                {!isGroupsLoading &&
+                  !groupsLoadError &&
+                  groups.map((group, index) => (
+                    <tr key={group.groupNumber}>
+                      <td>{index + 1}</td>
+                      <td>{group.groupNumber}</td>
+                      <td>{group.name}</td>
+                      <td>{group.superintendentUsername || "-"}</td>
+                      <td>
+                        <button
+                          className="table-button"
+                          type="button"
+                          onClick={() => handleEditGroup(group)}
+                        >
+                          Editar
+                        </button>
+                      </td>
                     </tr>
-                  ) : null}
-                  {!isGroupsLoading && !groupsLoadError && groups.length === 0 ? (
-                    <tr>
-                      <td colSpan={5}>No hay grupos registrados.</td>
-                    </tr>
-                  ) : null}
-                  {!isGroupsLoading &&
-                    !groupsLoadError &&
-                    groups.map((group, index) => (
-                      <tr key={group.groupNumber}>
-                        <td>{index + 1}</td>
-                        <td>{group.groupNumber}</td>
-                        <td>{group.name}</td>
-                        <td>{group.superintendentUsername || "-"}</td>
-                        <td>
-                          <button
-                            className="table-button"
-                            type="button"
-                            onClick={() => handleEditGroup(group)}
-                          >
-                            Editar
-                          </button>
-                        </td>
+                  ))}
+              </tbody>
+            </table>
+          </div>
+
+          {groupSubmitMessage ? (
+            <div
+              className={`feedback ${groupSubmitStatus === "success" ? "success" : "error"}`}
+              role="status"
+            >
+              {groupSubmitMessage}
+            </div>
+          ) : null}
+        </section>
+      ) : null}
+
+      {canManagePeople ? (
+        <section className="config-people">
+          <div className="config-section-head">
+            <div>
+              <h2 className="config-section-title">Personas registradas</h2>
+              <p className="config-section-description">
+                {isSuperAdmin
+                  ? "Administre la lista de personas agrupadas por número de grupo."
+                  : `Administre las personas registradas del Grupo ${managedGroupNumber}.`}
+              </p>
+            </div>
+            <div className="config-section-actions">
+              <span className="config-total">Total: {people.length}</span>
+              <button className="secondary-button" type="button" onClick={openNewModal}>
+                Agregar persona
+              </button>
+            </div>
+          </div>
+
+          <div className="config-grouped-people">
+            {isLoading ? (
+              <div className="table-wrapper">
+                <table className="table">
+                  <tbody>
+                    {CONFIG_TABLE_SKELETON_ROWS.map((rowIndex) => (
+                      <tr key={`config-skeleton-${rowIndex}`} className="table-skeleton">
+                        {CONFIG_TABLE_SKELETON_COLUMNS.map((size, cellIndex) => (
+                          <td key={`config-skeleton-cell-${rowIndex}-${cellIndex}`}>
+                            <span className={`skeleton-line ${size}`} />
+                          </td>
+                        ))}
                       </tr>
                     ))}
-                </tbody>
-              </table>
-            </div>
-
-            {groupSubmitMessage ? (
-              <div
-                className={`feedback ${groupSubmitStatus === "success" ? "success" : "error"}`}
-                role="status"
-              >
-                {groupSubmitMessage}
+                  </tbody>
+                </table>
               </div>
             ) : null}
-          </section>
-
-          <section className="config-people">
-            <div className="config-section-head">
-              <div>
-                <h2 className="config-section-title">Personas registradas</h2>
-                <p className="config-section-description">
-                  Administre la lista de personas para comparar pendientes de informes.
-                </p>
+            {!isLoading && loadError ? (
+              <div className="feedback error" role="status">
+                {loadError}
               </div>
-              <div className="config-section-actions">
-                <span className="config-total">Total: {people.length}</span>
-                <button className="secondary-button" type="button" onClick={openNewModal}>
-                  Agregar persona
-                </button>
+            ) : null}
+            {!isLoading && !loadError && peopleByGroup.length === 0 ? (
+              <div className="table-wrapper">
+                <table className="table">
+                  <tbody>
+                    <tr>
+                      <td>No hay personas registradas.</td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
-            </div>
+            ) : null}
+            {!isLoading && !loadError
+              ? peopleByGroup.map((groupBlock) => {
+                  const groupInfo = groups.find(
+                    (group) => Number(group.groupNumber) === Number(groupBlock.groupNumber)
+                  );
+                  const groupTitle =
+                    groupBlock.groupNumber > 0
+                      ? `${groupInfo?.name || `Grupo ${groupBlock.groupNumber}`} (Grupo ${groupBlock.groupNumber})`
+                      : "Sin grupo";
 
-            <div className="table-wrapper">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>No.</th>
-                    <th>Nombre</th>
-                    <th>Grupo</th>
-                    <th>Designación</th>
-                    <th>Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {isLoading
-                    ? CONFIG_TABLE_SKELETON_ROWS.map((rowIndex) => (
-                        <tr key={`config-skeleton-${rowIndex}`} className="table-skeleton">
-                          {CONFIG_TABLE_SKELETON_COLUMNS.map((size, cellIndex) => (
-                            <td key={`config-skeleton-cell-${rowIndex}-${cellIndex}`}>
-                              <span className={`skeleton-line ${size}`} />
-                            </td>
-                          ))}
-                        </tr>
-                      ))
-                    : null}
-                  {!isLoading && loadError ? (
-                    <tr>
-                      <td colSpan={5}>{loadError}</td>
-                    </tr>
-                  ) : null}
-                  {!isLoading && !loadError && people.length === 0 ? (
-                    <tr>
-                      <td colSpan={5}>No hay personas registradas.</td>
-                    </tr>
-                  ) : null}
-                  {!isLoading &&
-                    !loadError &&
-                    people.map((person, index) => (
-                      <tr key={person.id}>
-                        <td>{index + 1}</td>
-                        <td>{person.name}</td>
-                        <td>{person.groupNumber ?? "-"}</td>
-                        <td>{person.designation || "Publicador"}</td>
-                        <td>
-                          <div className="table-actions">
-                            <button
-                              className="table-button"
-                              type="button"
-                              onClick={() => handleEdit(person)}
-                            >
-                              Editar
-                            </button>
-                            <button
-                              className="table-button danger"
-                              type="button"
-                              onClick={() => handleDelete(person.id)}
-                            >
-                              Eliminar
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
-
-          <div className="config-spacer" />
-        </>
+                  return (
+                    <div className="closed-periods" key={`people-group-${groupBlock.groupNumber}`}>
+                      <div className="config-section-head">
+                        <h3 className="config-section-title">{groupTitle}</h3>
+                        <span className="config-total">Total: {groupBlock.items.length}</span>
+                      </div>
+                      <div className="table-wrapper">
+                        <table className="table">
+                          <thead>
+                            <tr>
+                              <th>No.</th>
+                              <th>Nombre</th>
+                              <th>Designación</th>
+                              <th>Acciones</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {groupBlock.items.map((person, index) => (
+                              <tr key={person.id}>
+                                <td>{index + 1}</td>
+                                <td>{person.name}</td>
+                                <td>{person.designation || "Publicador"}</td>
+                                <td>
+                                  <div className="table-actions">
+                                    <button
+                                      className="table-button"
+                                      type="button"
+                                      onClick={() => handleEdit(person)}
+                                    >
+                                      Editar
+                                    </button>
+                                    <button
+                                      className="table-button danger"
+                                      type="button"
+                                      onClick={() => handleDelete(person.id)}
+                                    >
+                                      Eliminar
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  );
+                })
+              : null}
+          </div>
+        </section>
       ) : (
         <section className="config-theme">
           <h2 className="config-section-title">Permisos</h2>
           <p className="config-section-description">
-            La gestión de grupos y personas está disponible solo para el superadmin.
+            La gestión de personas está disponible para superintendentes de grupo y superadmin.
           </p>
         </section>
       )}
+
+      {isSuperAdmin ? <div className="config-spacer" /> : null}
 
       {submitMessage ? (
         <div
@@ -694,29 +777,33 @@ export default function ConfigView({
                 ) : null}
               </div>
 
-              <div className="field">
-                <label htmlFor="person-group">Grupo</label>
-                <select
-                  id="person-group"
-                  name="person-group"
-                  value={formState.group}
-                  onChange={(event) => updateForm("group", event.target.value)}
-                  aria-invalid={Boolean(formErrors.group)}
-                  aria-describedby={formErrors.group ? "person-group-error" : undefined}
-                >
-                  <option value="">Seleccione</option>
-                  {groups.map((group) => (
-                    <option key={group.groupNumber} value={group.groupNumber}>
-                      {group.name} (Grupo {group.groupNumber})
-                    </option>
-                  ))}
-                </select>
-                {formErrors.group ? (
-                  <span id="person-group-error" className="error">
-                    {formErrors.group}
-                  </span>
-                ) : null}
-              </div>
+              {isSuperAdmin ? (
+                <div className="field">
+                  <label htmlFor="person-group">Grupo</label>
+                  <select
+                    id="person-group"
+                    name="person-group"
+                    value={formState.group}
+                    onChange={(event) => updateForm("group", event.target.value)}
+                    aria-invalid={Boolean(formErrors.group)}
+                    aria-describedby={formErrors.group ? "person-group-error" : undefined}
+                  >
+                    <option value="">Seleccione</option>
+                    {groups.map((group) => (
+                      <option key={group.groupNumber} value={group.groupNumber}>
+                        {group.name} (Grupo {group.groupNumber})
+                      </option>
+                    ))}
+                  </select>
+                  {formErrors.group ? (
+                    <span id="person-group-error" className="error">
+                      {formErrors.group}
+                    </span>
+                  ) : null}
+                </div>
+              ) : (
+                <input type="hidden" name="person-group" value={managedGroupNumber} />
+              )}
 
               <div className="field">
                 <label htmlFor="person-designation">Designación</label>
