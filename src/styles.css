@@ -446,6 +446,7 @@ input:disabled {
   width: 18px;
   height: 18px;
   accent-color: #6366f1;
+  outline: none;
 }
 
 .option-card.active {

@@ -35,7 +35,7 @@ function GroupSlugRoute({ isAuthenticated, authUser, authToken }) {
 export default function App() {
   const [authToken, setAuthToken] = useState("");
   const [authUser, setAuthUser] = useState(null);
-  const [theme, setTheme] = useState("dark");
+  const [theme, setTheme] = useState("light");
   const location = useLocation();
   const isAdminRoute = location.pathname.startsWith("/admin");
   const isConfigRoute = location.pathname.startsWith("/config");

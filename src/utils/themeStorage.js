@@ -4,7 +4,7 @@ const isValidTheme = (value) => value === "dark" || value === "light";
 
 export const getStoredTheme = () => {
   const value = localStorage.getItem(THEME_KEY);
-  return isValidTheme(value) ? value : "dark";
+  return isValidTheme(value) ? value : "light";
 };
 
 export const storeTheme = (theme) => {
