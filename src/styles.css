@@ -1035,6 +1035,27 @@ input:disabled {
   box-shadow: 0 10px 24px rgba(99, 102, 241, 0.3);
 }
 
+.submit-with-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.submit-icon {
+  width: 15px;
+  height: 15px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.submit-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
 .submit:hover {
   transform: translateY(-1px);
   box-shadow: 0 14px 30px rgba(139, 92, 246, 0.35);

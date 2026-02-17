@@ -7,6 +7,19 @@ import {
   isNumericValue,
 } from "../utils/reporting.js";
 
+const SubmitReportIcon = () => (
+  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+    <path
+      d="M21 3 3 10l7 2 2 7 9-16Z"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
 export default function ReportFormView({
   isAuthenticated = false,
   authUser = null,
@@ -455,8 +468,15 @@ export default function ReportFormView({
             />
           </div>
 
-          <button className="submit" type="submit" disabled={submitStatus === "loading"}>
-            {submitStatus === "loading" ? "Enviando..." : "Enviar informe"}
+          <button
+            className="submit submit-with-icon"
+            type="submit"
+            disabled={submitStatus === "loading"}
+          >
+            <span className="submit-icon" aria-hidden="true">
+              <SubmitReportIcon />
+            </span>
+            <span>{submitStatus === "loading" ? "Enviando..." : "Enviar informe"}</span>
           </button>
 
           {submitMessage ? (
