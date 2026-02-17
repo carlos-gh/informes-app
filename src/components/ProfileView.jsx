@@ -1,13 +1,21 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
 export default function ProfileView({
   authToken,
   onLogout,
+  authUser = null,
+  onProfileUserUpdate = () => {},
   theme = "dark",
   onThemeChange = () => {},
 }) {
   const isAuthenticated = Boolean(authToken);
+  const [nameFormState, setNameFormState] = useState({
+    fullName: String(authUser?.fullName || ""),
+  });
+  const [nameFormError, setNameFormError] = useState("");
+  const [nameSubmitStatus, setNameSubmitStatus] = useState("idle");
+  const [nameSubmitMessage, setNameSubmitMessage] = useState("");
   const [formState, setFormState] = useState({
     currentPassword: "",
     newPassword: "",
@@ -17,6 +25,12 @@ export default function ProfileView({
   const [submitStatus, setSubmitStatus] = useState("idle");
   const [submitMessage, setSubmitMessage] = useState("");
   const [themeSubmitMessage, setThemeSubmitMessage] = useState("");
+
+  useEffect(() => {
+    setNameFormState({
+      fullName: String(authUser?.fullName || ""),
+    });
+  }, [authUser?.fullName]);
 
   const updateForm = (field, value) => {
     setFormState((previous) => ({
@@ -43,6 +57,67 @@ export default function ProfileView({
     }
 
     return "";
+  };
+
+  const validateNameForm = () => {
+    const value = String(nameFormState.fullName || "")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    if (value.length < 2 || value.length > 100) {
+      return "El nombre debe tener entre 2 y 100 caracteres.";
+    }
+
+    return "";
+  };
+
+  const handleNameSubmit = async (event) => {
+    event.preventDefault();
+    setNameSubmitMessage("");
+
+    const errorMessage = validateNameForm();
+
+    if (errorMessage) {
+      setNameFormError(errorMessage);
+      setNameSubmitStatus("error");
+      return;
+    }
+
+    setNameFormError("");
+    setNameSubmitStatus("loading");
+
+    try {
+      const response = await fetch("/api/auth/me", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          fullName: String(nameFormState.fullName || "").replace(/\s+/g, " ").trim(),
+        }),
+      });
+
+      if (response.status === 401) {
+        onLogout();
+        setNameSubmitStatus("error");
+        setNameSubmitMessage("Su sesión expiró. Inicie sesión de nuevo.");
+        return;
+      }
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(String(data?.error || "No se pudo guardar el perfil."));
+      }
+
+      const data = await response.json();
+      onProfileUserUpdate(data?.user || null);
+      setNameSubmitStatus("success");
+      setNameSubmitMessage("Nombre actualizado correctamente.");
+    } catch (error) {
+      setNameSubmitStatus("error");
+      setNameSubmitMessage(String(error.message || "No se pudo guardar el perfil."));
+    }
   };
 
   const handleSubmit = async (event) => {
@@ -130,6 +205,48 @@ export default function ProfileView({
           <p className="subtitle">Cambie su contraseña de acceso.</p>
         </div>
       </div>
+
+      <section className="config-theme">
+        <h2 className="config-section-title">Datos de perfil</h2>
+        <p className="config-section-description">
+          Defina el nombre que se mostrará en su cuenta.
+        </p>
+
+        <form className="form" onSubmit={handleNameSubmit} noValidate>
+          <div className="field">
+            <label htmlFor="profile-full-name">
+              Nombre de la persona <span className="required">*</span>
+            </label>
+            <input
+              id="profile-full-name"
+              name="profile-full-name"
+              type="text"
+              value={nameFormState.fullName}
+              onChange={(event) =>
+                setNameFormState({ fullName: event.target.value })
+              }
+              required
+            />
+          </div>
+
+          {nameFormError ? <p className="error">{nameFormError}</p> : null}
+
+          <div className="form-actions">
+            <button className="submit" type="submit" disabled={nameSubmitStatus === "loading"}>
+              {nameSubmitStatus === "loading" ? "Guardando..." : "Guardar nombre"}
+            </button>
+          </div>
+
+          {nameSubmitMessage ? (
+            <div
+              className={`feedback ${nameSubmitStatus === "success" ? "success" : "error"}`}
+              role="status"
+            >
+              {nameSubmitMessage}
+            </div>
+          ) : null}
+        </form>
+      </section>
 
       <section className="config-theme">
         <h2 className="config-section-title">Preferencias</h2>

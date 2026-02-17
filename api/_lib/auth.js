@@ -11,6 +11,8 @@ const PASSWORD_MAX_LENGTH = 128;
 const USERNAME_MIN_LENGTH = 3;
 const USERNAME_MAX_LENGTH = 48;
 const USERNAME_PATTERN = /^[a-z0-9._-]+$/;
+const FULL_NAME_MIN_LENGTH = 2;
+const FULL_NAME_MAX_LENGTH = 100;
 
 const ROLE_SUPERADMIN = "superadmin";
 const ROLE_GROUP_ADMIN = "group_admin";
@@ -143,6 +145,21 @@ export const validatePasswordInput = (password) => {
   return true;
 };
 
+export const validateFullNameInput = (fullName) => {
+  const normalized = String(fullName || "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (
+    normalized.length < FULL_NAME_MIN_LENGTH ||
+    normalized.length > FULL_NAME_MAX_LENGTH
+  ) {
+    return "";
+  }
+
+  return normalized;
+};
+
 export const ensureIdentitySchema = async () => {
   await sql`
     CREATE TABLE IF NOT EXISTS groups (
@@ -158,6 +175,7 @@ export const ensureIdentitySchema = async () => {
     CREATE TABLE IF NOT EXISTS users (
       id SERIAL PRIMARY KEY,
       username TEXT NOT NULL UNIQUE,
+      full_name TEXT,
       password_hash TEXT NOT NULL,
       role TEXT NOT NULL DEFAULT 'group_admin',
       group_number INTEGER,
@@ -174,6 +192,7 @@ export const ensureIdentitySchema = async () => {
   await sql`ALTER TABLE groups ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();`;
 
   await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS username TEXT;`;
+  await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS full_name TEXT;`;
   await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash TEXT;`;
   await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'group_admin';`;
   await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS group_number INTEGER;`;
@@ -185,6 +204,7 @@ export const ensureIdentitySchema = async () => {
   await sql`ALTER TABLE users ALTER COLUMN is_active SET DEFAULT TRUE;`;
 
   await sql`UPDATE users SET username = LOWER(TRIM(username)) WHERE username IS NOT NULL;`;
+  await sql`UPDATE users SET full_name = NULL WHERE full_name IS NOT NULL AND LENGTH(TRIM(full_name)) = 0;`;
   await sql`UPDATE users SET role = 'group_admin' WHERE role IS NULL OR role = '';`;
   await sql`UPDATE users SET is_active = TRUE WHERE is_active IS NULL;`;
   await sql`UPDATE groups SET updated_at = NOW() WHERE updated_at IS NULL;`;
@@ -252,6 +272,7 @@ const buildAuthUser = (row) => {
   return {
     userId: Number(row?.id || 0),
     username: String(row?.username || ""),
+    fullName: String(row?.fullName || ""),
     role: normalizedRole,
     groupNumber,
     isSuperAdmin: normalizedRole === ROLE_SUPERADMIN,
@@ -263,6 +284,7 @@ const getUserForAuthByUsername = async (username) => {
     SELECT
       id,
       username,
+      full_name AS "fullName",
       password_hash AS "passwordHash",
       role,
       group_number AS "groupNumber",
@@ -280,6 +302,7 @@ const getUserForAuthById = async (userId) => {
     SELECT
       id,
       username,
+      full_name AS "fullName",
       password_hash AS "passwordHash",
       role,
       group_number AS "groupNumber",
@@ -323,6 +346,7 @@ export const createToken = (authUser) => {
   const payload = {
     userId: Number(user.userId || 0),
     username: String(user.username || ""),
+    fullName: String(user.fullName || ""),
     role: String(user.role || ROLE_GROUP_ADMIN),
     groupNumber:
       user.groupNumber === null || user.groupNumber === undefined
@@ -384,6 +408,7 @@ export const verifyToken = (token) => {
     payload: {
       userId: Number(payload.userId),
       username: String(payload.username),
+      fullName: String(payload.fullName || ""),
       role,
       groupNumber,
       isSuperAdmin: role === ROLE_SUPERADMIN,
@@ -440,6 +465,7 @@ export const getSafeAuthUser = (authPayload) => {
   return {
     userId: Number(authPayload.userId || 0),
     username: String(authPayload.username || ""),
+    fullName: String(authPayload.fullName || ""),
     role: isSuperAdmin(authPayload) ? ROLE_SUPERADMIN : ROLE_GROUP_ADMIN,
     groupNumber:
       authPayload.groupNumber === null || authPayload.groupNumber === undefined

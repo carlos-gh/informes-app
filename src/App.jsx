@@ -259,6 +259,8 @@ export default function App() {
                 <ProfileView
                   authToken={authToken}
                   onLogout={handleLogout}
+                  authUser={authUser}
+                  onProfileUserUpdate={setAuthUser}
                   theme={theme}
                   onThemeChange={handleThemeChange}
                 />

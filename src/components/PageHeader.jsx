@@ -9,6 +9,23 @@ export default function PageHeader({
 }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const isSuperAdmin = true === Boolean(authUser?.isSuperAdmin);
+  const displayName = String(authUser?.fullName || authUser?.username || "").trim();
+  const greetingPrefix = (() => {
+    const hour = new Date().getHours();
+
+    if (hour >= 5 && hour <= 11) {
+      return "Buenos días";
+    }
+
+    if (hour >= 12 && hour <= 18) {
+      return "Buenas tardes";
+    }
+
+    return "Buenas noches";
+  })();
+  const greetingMessage = displayName
+    ? `${greetingPrefix} ${displayName}!`
+    : `${greetingPrefix}!`;
 
   const toggleMenu = () => {
     setIsMenuOpen((previous) => !previous);
@@ -21,6 +38,8 @@ export default function PageHeader({
   return (
     <header className="page-header">
       <div className="header-shell">
+        {isAuthenticated ? <div className="header-greeting">{greetingMessage}</div> : null}
+
         <button
           className="header-menu-toggle"
           type="button"
