@@ -415,7 +415,7 @@ export default async function handler(req, res) {
         return;
       }
 
-      if (await isReportPeriodClosed(reportMonthKey)) {
+      if (!auth && (await isReportPeriodClosed(reportMonthKey))) {
         res.status(409).json({ error: "Report period is closed" });
         return;
       }
