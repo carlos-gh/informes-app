@@ -574,10 +574,6 @@ export default function AdminView({ authToken, onLogout }) {
       return "Este periodo ya está completado.";
     }
 
-    if (activeMonthKey !== defaultMonthKey) {
-      return "Solo puede cerrar el periodo del mes actual.";
-    }
-
     if (pendingError) {
       return "No se pudo validar la lista de pendientes.";
     }
@@ -596,8 +592,6 @@ export default function AdminView({ authToken, onLogout }) {
 
     return "";
   }, [
-    activeMonthKey,
-    defaultMonthKey,
     filteredReports.length,
     isActiveMonthClosed,
     pendingError,
@@ -611,12 +605,8 @@ export default function AdminView({ authToken, onLogout }) {
       return "Este periodo ya está abierto.";
     }
 
-    if (activeMonthKey !== defaultMonthKey) {
-      return "Solo puede reabrir el periodo del mes actual.";
-    }
-
     return "";
-  }, [activeMonthKey, defaultMonthKey, isActiveMonthClosed]);
+  }, [isActiveMonthClosed]);
   const canReopenPeriod = "" === reopenPeriodBlockReason;
 
   const handleDownloadPdf = () => {
