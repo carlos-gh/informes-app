@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Route, Routes, useLocation, useParams } from "react-router-dom";
 import AdminView from "./components/AdminView.jsx";
 import ConfigView from "./components/ConfigView.jsx";
+import GroupSelectorView from "./components/GroupSelectorView.jsx";
 import LoginView from "./components/LoginView.jsx";
 import NotFoundView from "./components/NotFoundView.jsx";
 import PageFooter from "./components/PageFooter.jsx";
@@ -13,15 +14,20 @@ import { clearToken, getStoredToken, storeToken } from "./utils/authStorage.js";
 import { getReportingLabelFromKey } from "./utils/reporting.js";
 import { getStoredTheme, storeTheme } from "./utils/themeStorage.js";
 
-function GroupReportRoute({ isAuthenticated, authUser, authToken }) {
-  const { groupNumber = "" } = useParams();
+function GroupSlugRoute({ isAuthenticated, authUser, authToken }) {
+  const { groupSlug = "" } = useParams();
+  const groupMatch = String(groupSlug).match(/^grupo-(\d+)$/);
+
+  if (!groupMatch || !groupMatch[1]) {
+    return <NotFoundView />;
+  }
 
   return (
     <ReportFormView
       isAuthenticated={isAuthenticated}
       authUser={authUser}
       authToken={authToken}
-      forcedGroupNumber={groupNumber}
+      forcedGroupNumber={groupMatch[1]}
     />
   );
 }
@@ -96,7 +102,7 @@ export default function App() {
     const groupFormMatch = location.pathname.match(/^\/grupo-(\d+)\/?$/);
 
     if ("/" === location.pathname) {
-      document.title = "Informe mensual | Congregación El Puente Monte Tabor";
+      document.title = "Seleccione grupo | Congregación El Puente Monte Tabor";
       return;
     }
 
@@ -193,17 +199,13 @@ export default function App() {
             <Route
               path="/"
               element={
-                <ReportFormView
-                  isAuthenticated={isAuthenticated}
-                  authUser={authUser}
-                  authToken={authToken}
-                />
+                <GroupSelectorView />
               }
             />
             <Route
-              path="/grupo-:groupNumber"
+              path="/:groupSlug"
               element={
-                <GroupReportRoute
+                <GroupSlugRoute
                   isAuthenticated={isAuthenticated}
                   authUser={authUser}
                   authToken={authToken}

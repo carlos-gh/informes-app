@@ -253,6 +253,59 @@ body {
   line-height: 1.6;
 }
 
+.group-selector-view {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.group-selector-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
+}
+
+.group-selector-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 10px;
+  min-height: 132px;
+  padding: 18px;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  background: rgba(15, 23, 42, 0.55);
+  text-decoration: none;
+  color: #e2e8f0;
+  transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+}
+
+.group-selector-card:hover {
+  border-color: rgba(99, 102, 241, 0.75);
+  background: rgba(99, 102, 241, 0.16);
+  transform: translateY(-1px);
+}
+
+.group-selector-card-number {
+  font-size: 1.35rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.group-selector-card-name {
+  font-size: 0.95rem;
+  color: #94a3b8;
+}
+
+.group-selector-card-skeleton {
+  pointer-events: none;
+  cursor: default;
+}
+
+.group-selector-card-skeleton .skeleton-line {
+  height: 14px;
+}
+
 .month-highlight {
   display: inline-block;
   margin-left: 4px;
@@ -1309,6 +1362,20 @@ input:disabled {
   background: #ffffff;
   border-color: rgba(148, 163, 184, 0.45);
   color: #0f172a;
+}
+
+:root[data-theme="light"] .group-selector-card {
+  background: #ffffff;
+  border-color: rgba(148, 163, 184, 0.45);
+  color: #0f172a;
+}
+
+:root[data-theme="light"] .group-selector-card:hover {
+  background: rgba(99, 102, 241, 0.1);
+}
+
+:root[data-theme="light"] .group-selector-card-name {
+  color: #475569;
 }
 
 :root[data-theme="light"] .closed-period-item.active {

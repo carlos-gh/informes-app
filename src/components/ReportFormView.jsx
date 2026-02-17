@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import {
   getMonthNameInSpanish,
   getReportDate,
@@ -14,7 +13,6 @@ export default function ReportFormView({
   authToken = "",
   forcedGroupNumber = "",
 }) {
-  const navigate = useNavigate();
   const currentDate = useMemo(() => new Date(), []);
   const reportDate = useMemo(() => getReportDate(currentDate), [currentDate]);
   const reportMonthName = useMemo(
@@ -79,7 +77,6 @@ export default function ReportFormView({
     courses: "",
     comments: "",
   });
-  const [landingGroupNumber, setLandingGroupNumber] = useState("");
   const [groups, setGroups] = useState([]);
   const [groupsLoadError, setGroupsLoadError] = useState("");
   const [formErrors, setFormErrors] = useState({});
@@ -189,24 +186,6 @@ export default function ReportFormView({
     });
   };
 
-  const handleGoToGroupForm = () => {
-    if (!landingGroupNumber) {
-      setSubmitStatus("error");
-      setSubmitMessage("Seleccione un grupo para abrir su formulario.");
-      return;
-    }
-
-    const selectedGroup = Number(landingGroupNumber);
-
-    if (!Number.isInteger(selectedGroup) || selectedGroup < 1) {
-      setSubmitStatus("error");
-      setSubmitMessage("Seleccione un grupo válido.");
-      return;
-    }
-
-    navigate(`/grupo-${selectedGroup}`);
-  };
-
   const handleSubmit = async (event) => {
     event.preventDefault();
     setSubmitMessage("");
@@ -283,35 +262,6 @@ export default function ReportFormView({
     <section>
       <h1 className="title">Informe mensual de actividades</h1>
 
-      {!isFixedGroupRoute && !isGroupUser ? (
-        <div className="field">
-          <label htmlFor="landing-group-selector">Seleccionar grupo</label>
-          <select
-            id="landing-group-selector"
-            name="landing-group-selector"
-            value={landingGroupNumber}
-            onChange={(event) => setLandingGroupNumber(event.target.value)}
-            disabled={groups.length === 0}
-          >
-            <option value="">Seleccione un grupo</option>
-            {groups.map((group) => (
-              <option key={group.groupNumber} value={group.groupNumber}>
-                {group.name} (Grupo {group.groupNumber})
-              </option>
-            ))}
-          </select>
-          <button
-            className="submit"
-            type="button"
-            onClick={handleGoToGroupForm}
-            disabled={!landingGroupNumber}
-          >
-            Ir al formulario del grupo
-          </button>
-          {groupsLoadError ? <span className="error">{groupsLoadError}</span> : null}
-        </div>
-      ) : null}
-
       {isOpen ? (
         <p className="subtitle">
           Ya puede enviar sus informes predicacion del mes de{" "}
@@ -349,6 +299,13 @@ export default function ReportFormView({
               required
             >
               <option value="">Seleccione un grupo</option>
+              {isGroupSelectionLocked &&
+              lockedGroupNumber &&
+              !groups.some(
+                (group) => Number(group.groupNumber) === Number(lockedGroupNumber)
+              ) ? (
+                <option value={lockedGroupNumber}>Grupo {lockedGroupNumber}</option>
+              ) : null}
               {groups.map((group) => (
                 <option key={group.groupNumber} value={group.groupNumber}>
                   {group.name} (Grupo {group.groupNumber})
