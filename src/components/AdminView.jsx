@@ -1164,8 +1164,8 @@ export default function AdminView({ authToken, authUser, onLogout }) {
         </div>
       </div>
 
-      <section className="config-theme">
-        {isSuperAdmin ? (
+      {isSuperAdmin ? (
+        <section className="config-theme">
           <div className="field">
             <label htmlFor="admin-group-context">Grupo visible</label>
             <select
@@ -1191,12 +1191,8 @@ export default function AdminView({ authToken, authUser, onLogout }) {
               })}
             </select>
           </div>
-        ) : (
-          <p className="config-section-description">
-            Mostrando informes de: <strong>{activeGroupLabel}</strong>
-          </p>
-        )}
-      </section>
+        </section>
+      ) : null}
 
       {!isDetailView ? (
         <>
