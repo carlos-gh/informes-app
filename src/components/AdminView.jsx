@@ -43,6 +43,7 @@ ChartJS.register(
 );
 
 const CLOSED_PERIODS_SKELETON_ITEMS = Array.from({ length: 3 }, (_, index) => index);
+const OPEN_PERIODS_SKELETON_ITEMS = Array.from({ length: 2 }, (_, index) => index);
 
 export default function AdminView({ authToken, onLogout }) {
   const navigate = useNavigate();
@@ -82,16 +83,22 @@ export default function AdminView({ authToken, onLogout }) {
     return closedPeriods.map((period) => period.reportMonthKey).filter(Boolean);
   }, [closedPeriods]);
 
+  const reportMonthKeys = useMemo(() => {
+    return Array.from(
+      new Set(reports.map((report) => report.reportMonthKey).filter(Boolean))
+    ).sort((a, b) => b.localeCompare(a));
+  }, [reports]);
+
   const closedMonthKeySet = useMemo(() => {
     return new Set(closedMonthKeys);
   }, [closedMonthKeys]);
 
   const availableMonthKeys = useMemo(() => {
-    const uniqueKeys = new Set([defaultMonthKey, ...closedMonthKeys]);
+    const uniqueKeys = new Set([defaultMonthKey, ...reportMonthKeys, ...closedMonthKeys]);
     return Array.from(uniqueKeys)
       .filter(Boolean)
       .sort((a, b) => b.localeCompare(a));
-  }, [defaultMonthKey, closedMonthKeys]);
+  }, [defaultMonthKey, reportMonthKeys, closedMonthKeys]);
 
   const activeMonthKey = selectedMonthKey || defaultMonthKey;
   const activeMonthLabel = useMemo(
@@ -162,6 +169,28 @@ export default function AdminView({ authToken, onLogout }) {
       };
     });
   }, [closedPeriods, reportSummaryByMonth]);
+
+  const openMonthKeys = useMemo(() => {
+    return availableMonthKeys.filter((monthKey) => !closedMonthKeySet.has(monthKey));
+  }, [availableMonthKeys, closedMonthKeySet]);
+
+  const openPeriodSummaries = useMemo(() => {
+    return openMonthKeys.map((monthKey) => {
+      const summary = reportSummaryByMonth.get(monthKey) || {
+        totalReports: 0,
+        totalHours: 0,
+        totalCourses: 0,
+      };
+
+      return {
+        reportMonthKey: monthKey,
+        reportMonthLabel: getReportingLabelFromKey(monthKey),
+        totalReports: summary.totalReports,
+        totalHours: summary.totalHours,
+        totalCourses: summary.totalCourses,
+      };
+    });
+  }, [openMonthKeys, reportSummaryByMonth]);
 
   const lastMonthKeys = useMemo(() => {
     const keys = Array.from(
@@ -920,49 +949,102 @@ export default function AdminView({ authToken, onLogout }) {
         </div>
       </div>
 
-      {!isDetailView && (isLoading || closedPeriodSummaries.length > 0) ? (
-        <section className="closed-periods">
-          <div className="closed-periods-header">
-            <h2 className="closed-periods-title">Meses completados</h2>
-            <p className="closed-periods-subtitle">
-              Seleccione un mes para abrir sus detalles.
-            </p>
-          </div>
-          <div className="closed-periods-list">
-            {isLoading
-              ? CLOSED_PERIODS_SKELETON_ITEMS.map((index) => (
-                  <div
-                    key={`closed-period-skeleton-${index}`}
-                    className="closed-period-item closed-period-item-skeleton"
-                  >
-                    <span className="skeleton-line skeleton-lg" />
-                    <span className="skeleton-line skeleton-xl" />
-                    <span className="skeleton-line skeleton-md" />
-                  </div>
-                ))
-              : closedPeriodSummaries.map((period) => (
-                  <button
-                    key={period.reportMonthKey}
-                    className={`closed-period-item ${
-                      activeMonthKey === period.reportMonthKey ? "active" : ""
-                    }`}
-                    type="button"
-                    onClick={() =>
-                      selectMonth(period.reportMonthKey, { openDetail: true })
-                    }
-                  >
-                    <span className="closed-period-month">{period.reportMonthLabel}</span>
-                    <span className="closed-period-meta">
-                      Informes: {period.totalReports} · Horas: {period.totalHours} · Cursos:{" "}
-                      {period.totalCourses}
-                    </span>
-                    <span className="closed-period-meta">
-                      Completado: {formatDateTime(period.closedAt)}
-                    </span>
-                  </button>
-                ))}
-          </div>
-        </section>
+      {!isDetailView ? (
+        <>
+          <section className="closed-periods">
+            <div className="closed-periods-header">
+              <h2 className="closed-periods-title">Periodos abiertos</h2>
+              <p className="closed-periods-subtitle">
+                Seleccione un periodo abierto para registrar o editar informes.
+              </p>
+            </div>
+            <div className="closed-periods-list">
+              {isLoading
+                ? OPEN_PERIODS_SKELETON_ITEMS.map((index) => (
+                    <div
+                      key={`open-period-skeleton-${index}`}
+                      className="closed-period-item closed-period-item-skeleton"
+                    >
+                      <span className="skeleton-line skeleton-lg" />
+                      <span className="skeleton-line skeleton-xl" />
+                      <span className="skeleton-line skeleton-md" />
+                    </div>
+                  ))
+                : openPeriodSummaries.map((period) => (
+                    <button
+                      key={period.reportMonthKey}
+                      className={`closed-period-item ${
+                        activeMonthKey === period.reportMonthKey ? "active" : ""
+                      }`}
+                      type="button"
+                      onClick={() =>
+                        selectMonth(period.reportMonthKey, { openDetail: true })
+                      }
+                    >
+                      <span className="closed-period-month">{period.reportMonthLabel}</span>
+                      <span className="closed-period-meta">
+                        Informes: {period.totalReports} · Horas: {period.totalHours} · Cursos:{" "}
+                        {period.totalCourses}
+                      </span>
+                      <span className="closed-period-meta">Estado: abierto</span>
+                    </button>
+                  ))}
+            </div>
+          </section>
+
+          <section className="closed-periods">
+            <div className="closed-periods-header">
+              <h2 className="closed-periods-title">Meses completados</h2>
+              <p className="closed-periods-subtitle">
+                Seleccione un mes para abrir sus detalles.
+              </p>
+            </div>
+            <div className="closed-periods-list">
+              {isLoading
+                ? CLOSED_PERIODS_SKELETON_ITEMS.map((index) => (
+                    <div
+                      key={`closed-period-skeleton-${index}`}
+                      className="closed-period-item closed-period-item-skeleton"
+                    >
+                      <span className="skeleton-line skeleton-lg" />
+                      <span className="skeleton-line skeleton-xl" />
+                      <span className="skeleton-line skeleton-md" />
+                    </div>
+                  ))
+                : null}
+              {!isLoading && 0 === closedPeriodSummaries.length ? (
+                <div className="closed-period-item closed-period-item-skeleton">
+                  <span className="closed-period-meta">
+                    Aún no hay meses completados.
+                  </span>
+                </div>
+              ) : null}
+              {!isLoading
+                ? closedPeriodSummaries.map((period) => (
+                    <button
+                      key={period.reportMonthKey}
+                      className={`closed-period-item ${
+                        activeMonthKey === period.reportMonthKey ? "active" : ""
+                      }`}
+                      type="button"
+                      onClick={() =>
+                        selectMonth(period.reportMonthKey, { openDetail: true })
+                      }
+                    >
+                      <span className="closed-period-month">{period.reportMonthLabel}</span>
+                      <span className="closed-period-meta">
+                        Informes: {period.totalReports} · Horas: {period.totalHours} · Cursos:{" "}
+                        {period.totalCourses}
+                      </span>
+                      <span className="closed-period-meta">
+                        Completado: {formatDateTime(period.closedAt)}
+                      </span>
+                    </button>
+                  ))
+                : null}
+            </div>
+          </section>
+        </>
       ) : null}
 
       {isModalOpen ? (
