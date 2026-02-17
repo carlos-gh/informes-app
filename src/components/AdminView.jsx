@@ -722,11 +722,7 @@ export default function AdminView({ authToken, authUser, onLogout }) {
       return;
     }
 
-    if (
-      !window.confirm(
-        `¿Desea cerrar el periodo de ${activeMonthLabel} para ${activeGroupLabel}? El mes quedará en modo solo vista previa.`
-      )
-    ) {
+    if (!window.confirm(closePeriodConfirmMessage)) {
       return;
     }
 
@@ -870,35 +866,43 @@ export default function AdminView({ authToken, authUser, onLogout }) {
       return "No hay informes cargados para este mes.";
     }
 
-    if (shouldValidatePendingPeople) {
-      if (pendingError) {
-        return "No se pudo validar la lista de pendientes.";
-      }
-
-      if (0 === peopleForActiveGroup.length) {
-        return "Debe registrar personas para validar pendientes.";
-      }
-
-      if (0 < pendingPeople.length) {
-        return "Aún hay personas pendientes por informar.";
-      }
-    }
-
     return "";
   }, [
     activeGroupIsUngrouped,
     activeGroupNumber,
-    defaultMonthKey,
     filteredReports.length,
-    activeMonthKey,
     isActiveMonthClosed,
+  ]);
+
+  const canClosePeriod = "" === closePeriodBlockReason;
+  const closePeriodConfirmMessage = useMemo(() => {
+    const defaultMessage = `¿Desea cerrar el periodo de ${activeMonthLabel} para ${activeGroupLabel}? El mes quedará en modo solo vista previa.`;
+
+    if (!shouldValidatePendingPeople) {
+      return defaultMessage;
+    }
+
+    if (pendingError) {
+      return `${defaultMessage}\n\nNo se pudo validar la lista de pendientes. ¿Desea continuar de todos modos?`;
+    }
+
+    if (0 === peopleForActiveGroup.length) {
+      return `${defaultMessage}\n\nNo hay personas registradas para comparar pendientes. ¿Desea continuar de todos modos?`;
+    }
+
+    if (0 < pendingPeople.length) {
+      return `${defaultMessage}\n\nAún hay ${pendingPeople.length} persona(s) pendiente(s) por informar. ¿Desea cerrar el periodo de todos modos?`;
+    }
+
+    return defaultMessage;
+  }, [
+    activeGroupLabel,
+    activeMonthLabel,
     pendingError,
     pendingPeople.length,
     peopleForActiveGroup.length,
     shouldValidatePendingPeople,
   ]);
-
-  const canClosePeriod = "" === closePeriodBlockReason;
   const reopenPeriodBlockReason = useMemo(() => {
     if (activeGroupIsUngrouped) {
       return "Los informes sin grupo no admiten reapertura de periodo.";

@@ -1387,6 +1387,20 @@ input:disabled {
   color: #a16207;
 }
 
+:root[data-theme="light"] .closed {
+  border-color: rgba(217, 119, 6, 0.45);
+  background: #fff7ed;
+  color: #9a3412;
+}
+
+:root[data-theme="light"] .closed-title {
+  color: #7c2d12;
+}
+
+:root[data-theme="light"] .closed-message {
+  color: #9a3412;
+}
+
 :root[data-theme="light"] .closed-period-item {
   background: #ffffff;
   border-color: rgba(148, 163, 184, 0.45);
