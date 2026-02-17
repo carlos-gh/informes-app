@@ -1317,10 +1317,12 @@ export default function AdminView({ authToken, authUser, onLogout }) {
           <section className="closed-periods">
             <div className="closed-periods-header">
               <h2 className="closed-periods-title">Periodos abiertos</h2>
-              <p className="closed-periods-subtitle">
-                {activeGroupLabel}: seleccione un periodo abierto para registrar o editar
-                informes.
-              </p>
+              {isLoading || 0 < openPeriodSummaries.length ? (
+                <p className="closed-periods-subtitle">
+                  {activeGroupLabel}: seleccione un periodo abierto para registrar o editar
+                  informes.
+                </p>
+              ) : null}
             </div>
             <div className="closed-periods-list">
               {isLoading
@@ -1334,7 +1336,16 @@ export default function AdminView({ authToken, authUser, onLogout }) {
                       <span className="skeleton-line skeleton-md" />
                     </div>
                   ))
-                : openPeriodSummaries.map((period) => (
+                : null}
+              {!isLoading && 0 === openPeriodSummaries.length ? (
+                <div className="closed-period-item closed-period-item-skeleton">
+                  <span className="closed-period-meta">
+                    No hay periodos abiertos. Esperando el próximo periodo.
+                  </span>
+                </div>
+              ) : null}
+              {!isLoading
+                ? openPeriodSummaries.map((period) => (
                     <button
                       key={period.reportMonthKey}
                       className={`closed-period-item ${
@@ -1352,7 +1363,8 @@ export default function AdminView({ authToken, authUser, onLogout }) {
                       </span>
                       <span className="closed-period-meta">Estado: abierto</span>
                     </button>
-                  ))}
+                  ))
+                : null}
             </div>
           </section>
 
