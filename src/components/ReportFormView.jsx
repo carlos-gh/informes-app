@@ -82,6 +82,25 @@ export default function ReportFormView({
   const [formErrors, setFormErrors] = useState({});
   const [submitStatus, setSubmitStatus] = useState("idle");
   const [submitMessage, setSubmitMessage] = useState("");
+  const activeGroupTitle = useMemo(() => {
+    const activeGroupNumber = String(
+      formData.groupNumber || lockedGroupNumber || ""
+    ).trim();
+
+    if (!activeGroupNumber) {
+      return "";
+    }
+
+    const matchedGroup = groups.find(
+      (group) => Number(group.groupNumber) === Number(activeGroupNumber)
+    );
+
+    if (matchedGroup?.name) {
+      return matchedGroup.name;
+    }
+
+    return `Grupo ${activeGroupNumber}`;
+  }, [formData.groupNumber, groups, lockedGroupNumber]);
 
   useEffect(() => {
     let isMounted = true;
@@ -260,7 +279,10 @@ export default function ReportFormView({
 
   return (
     <section>
-      <h1 className="title">Informe mensual de actividades</h1>
+      <h1 className="title">
+        Informe mensual de actividades
+        {activeGroupTitle ? ` - ${activeGroupTitle}` : ""}
+      </h1>
 
       {isOpen ? (
         <p className="subtitle">
@@ -284,41 +306,37 @@ export default function ReportFormView({
 
       {canSubmit ? (
         <form className="form" onSubmit={handleSubmit} noValidate>
-          <div className="field">
-            <label htmlFor="groupNumber">
-              Grupo <span className="required">*</span>
-            </label>
-            <select
-              id="groupNumber"
-              name="groupNumber"
-              value={formData.groupNumber}
-              onChange={(event) => updateFormData("groupNumber", event.target.value)}
-              aria-invalid={Boolean(formErrors.groupNumber)}
-              aria-describedby={formErrors.groupNumber ? "group-error" : undefined}
-              disabled={isGroupSelectionLocked}
-              required
-            >
-              <option value="">Seleccione un grupo</option>
-              {isGroupSelectionLocked &&
-              lockedGroupNumber &&
-              !groups.some(
-                (group) => Number(group.groupNumber) === Number(lockedGroupNumber)
-              ) ? (
-                <option value={lockedGroupNumber}>Grupo {lockedGroupNumber}</option>
+          {isGroupSelectionLocked ? (
+            <input type="hidden" name="groupNumber" value={formData.groupNumber} />
+          ) : (
+            <div className="field">
+              <label htmlFor="groupNumber">
+                Grupo <span className="required">*</span>
+              </label>
+              <select
+                id="groupNumber"
+                name="groupNumber"
+                value={formData.groupNumber}
+                onChange={(event) => updateFormData("groupNumber", event.target.value)}
+                aria-invalid={Boolean(formErrors.groupNumber)}
+                aria-describedby={formErrors.groupNumber ? "group-error" : undefined}
+                required
+              >
+                <option value="">Seleccione un grupo</option>
+                {groups.map((group) => (
+                  <option key={group.groupNumber} value={group.groupNumber}>
+                    {group.name} (Grupo {group.groupNumber})
+                  </option>
+                ))}
+              </select>
+              {formErrors.groupNumber ? (
+                <span id="group-error" className="error">
+                  {formErrors.groupNumber}
+                </span>
               ) : null}
-              {groups.map((group) => (
-                <option key={group.groupNumber} value={group.groupNumber}>
-                  {group.name} (Grupo {group.groupNumber})
-                </option>
-              ))}
-            </select>
-            {formErrors.groupNumber ? (
-              <span id="group-error" className="error">
-                {formErrors.groupNumber}
-              </span>
-            ) : null}
-            {groupsLoadError ? <span className="error">{groupsLoadError}</span> : null}
-          </div>
+              {groupsLoadError ? <span className="error">{groupsLoadError}</span> : null}
+            </div>
+          )}
 
           <div className="field">
             <label htmlFor="name">
