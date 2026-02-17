@@ -3,8 +3,6 @@ import { formatDateTime } from "../utils/reporting.js";
 const ADMIN_TABLE_SKELETON_ROWS = Array.from({ length: 6 }, (_, index) => index);
 const ADMIN_TABLE_SKELETON_COLUMNS = [
   "skeleton-xs",
-  "skeleton-sm",
-  "skeleton-xs",
   "skeleton-lg",
   "skeleton-sm",
   "skeleton-xs",
@@ -105,8 +103,6 @@ export default function AdminMonthDetailView({
           <thead>
             <tr>
               <th>No.</th>
-              <th>Mes</th>
-              <th>Grupo</th>
               <th>Nombre</th>
               <th>Participación</th>
               <th>Horas</th>
@@ -131,12 +127,12 @@ export default function AdminMonthDetailView({
               : null}
             {!isLoading && loadError ? (
               <tr>
-                <td colSpan={11}>{loadError}</td>
+                <td colSpan={9}>{loadError}</td>
               </tr>
             ) : null}
             {!isLoading && !loadError && filteredReports.length === 0 ? (
               <tr>
-                <td colSpan={11}>No hay registros disponibles.</td>
+                <td colSpan={9}>No hay registros disponibles.</td>
               </tr>
             ) : null}
             {!isLoading &&
@@ -144,8 +140,6 @@ export default function AdminMonthDetailView({
               filteredReports.map((report, index) => (
                 <tr key={report.id}>
                   <td>{index + 1}</td>
-                  <td>{report.reportMonthLabel}</td>
-                  <td>{report.groupNumber ?? "-"}</td>
                   <td>{report.name}</td>
                   <td>{report.participation}</td>
                   <td>{report.hours || "-"}</td>
