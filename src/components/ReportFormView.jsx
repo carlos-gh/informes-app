@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   getMonthNameInSpanish,
   getReportDate,
@@ -11,7 +12,9 @@ export default function ReportFormView({
   isAuthenticated = false,
   authUser = null,
   authToken = "",
+  forcedGroupNumber = "",
 }) {
+  const navigate = useNavigate();
   const currentDate = useMemo(() => new Date(), []);
   const reportDate = useMemo(() => getReportDate(currentDate), [currentDate]);
   const reportMonthName = useMemo(
@@ -31,15 +34,52 @@ export default function ReportFormView({
 
     return String(authUser?.groupNumber || "");
   }, [authUser?.groupNumber, isGroupUser]);
+  const normalizedForcedGroupNumber = useMemo(() => {
+    const normalized = String(forcedGroupNumber || "").trim();
+
+    if (!normalized) {
+      return "";
+    }
+
+    const parsed = Number(normalized);
+
+    if (!Number.isInteger(parsed) || parsed < 1) {
+      return "";
+    }
+
+    return String(parsed);
+  }, [forcedGroupNumber]);
+  const hasInvalidForcedGroup = useMemo(() => {
+    return String(forcedGroupNumber || "").trim() !== "" && !normalizedForcedGroupNumber;
+  }, [forcedGroupNumber, normalizedForcedGroupNumber]);
+  const isFixedGroupRoute = normalizedForcedGroupNumber !== "";
+  const lockedGroupNumber = useMemo(() => {
+    if (isGroupUser && defaultGroupNumber) {
+      return defaultGroupNumber;
+    }
+
+    if (isFixedGroupRoute) {
+      return normalizedForcedGroupNumber;
+    }
+
+    return "";
+  }, [
+    defaultGroupNumber,
+    isFixedGroupRoute,
+    isGroupUser,
+    normalizedForcedGroupNumber,
+  ]);
+  const isGroupSelectionLocked = isGroupUser || isFixedGroupRoute;
 
   const [formData, setFormData] = useState({
-    groupNumber: defaultGroupNumber,
+    groupNumber: lockedGroupNumber,
     name: "",
     participation: "",
     hours: "",
     courses: "",
     comments: "",
   });
+  const [landingGroupNumber, setLandingGroupNumber] = useState("");
   const [groups, setGroups] = useState([]);
   const [groupsLoadError, setGroupsLoadError] = useState("");
   const [formErrors, setFormErrors] = useState({});
@@ -79,15 +119,15 @@ export default function ReportFormView({
   }, []);
 
   useEffect(() => {
-    if (!defaultGroupNumber) {
+    if (!lockedGroupNumber) {
       return;
     }
 
     setFormData((previous) => ({
       ...previous,
-      groupNumber: defaultGroupNumber,
+      groupNumber: lockedGroupNumber,
     }));
-  }, [defaultGroupNumber]);
+  }, [lockedGroupNumber]);
 
   const updateFormData = (field, value) => {
     setFormData((previous) => ({
@@ -111,8 +151,15 @@ export default function ReportFormView({
       nextErrors.name = "El nombre es obligatorio.";
     }
 
-    if (!formData.groupNumber || Number.isNaN(Number(formData.groupNumber))) {
+    const selectedGroup = Number(formData.groupNumber);
+
+    if (!formData.groupNumber || Number.isNaN(selectedGroup) || selectedGroup < 1) {
       nextErrors.groupNumber = "Seleccione un grupo válido.";
+    } else if (
+      groups.length > 0 &&
+      !groups.some((group) => Number(group.groupNumber) === selectedGroup)
+    ) {
+      nextErrors.groupNumber = "El grupo seleccionado no está registrado.";
     }
 
     if (formData.participation.trim().length === 0) {
@@ -133,7 +180,7 @@ export default function ReportFormView({
 
   const resetForm = () => {
     setFormData({
-      groupNumber: defaultGroupNumber,
+      groupNumber: lockedGroupNumber,
       name: "",
       participation: "",
       hours: "",
@@ -142,9 +189,33 @@ export default function ReportFormView({
     });
   };
 
+  const handleGoToGroupForm = () => {
+    if (!landingGroupNumber) {
+      setSubmitStatus("error");
+      setSubmitMessage("Seleccione un grupo para abrir su formulario.");
+      return;
+    }
+
+    const selectedGroup = Number(landingGroupNumber);
+
+    if (!Number.isInteger(selectedGroup) || selectedGroup < 1) {
+      setSubmitStatus("error");
+      setSubmitMessage("Seleccione un grupo válido.");
+      return;
+    }
+
+    navigate(`/grupo-${selectedGroup}`);
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
     setSubmitMessage("");
+
+    if (hasInvalidForcedGroup) {
+      setSubmitStatus("error");
+      setSubmitMessage("La ruta del grupo no es válida.");
+      return;
+    }
 
     if (!validateForm()) {
       setSubmitStatus("error");
@@ -212,6 +283,35 @@ export default function ReportFormView({
     <section>
       <h1 className="title">Informe mensual de actividades</h1>
 
+      {!isFixedGroupRoute && !isGroupUser ? (
+        <div className="field">
+          <label htmlFor="landing-group-selector">Seleccionar grupo</label>
+          <select
+            id="landing-group-selector"
+            name="landing-group-selector"
+            value={landingGroupNumber}
+            onChange={(event) => setLandingGroupNumber(event.target.value)}
+            disabled={groups.length === 0}
+          >
+            <option value="">Seleccione un grupo</option>
+            {groups.map((group) => (
+              <option key={group.groupNumber} value={group.groupNumber}>
+                {group.name} (Grupo {group.groupNumber})
+              </option>
+            ))}
+          </select>
+          <button
+            className="submit"
+            type="button"
+            onClick={handleGoToGroupForm}
+            disabled={!landingGroupNumber}
+          >
+            Ir al formulario del grupo
+          </button>
+          {groupsLoadError ? <span className="error">{groupsLoadError}</span> : null}
+        </div>
+      ) : null}
+
       {isOpen ? (
         <p className="subtitle">
           Ya puede enviar sus informes predicacion del mes de{" "}
@@ -245,7 +345,7 @@ export default function ReportFormView({
               onChange={(event) => updateFormData("groupNumber", event.target.value)}
               aria-invalid={Boolean(formErrors.groupNumber)}
               aria-describedby={formErrors.groupNumber ? "group-error" : undefined}
-              disabled={isGroupUser}
+              disabled={isGroupSelectionLocked}
               required
             >
               <option value="">Seleccione un grupo</option>
