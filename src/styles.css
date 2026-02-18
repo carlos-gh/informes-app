@@ -1476,6 +1476,12 @@ input:disabled {
   color: #1e293b;
 }
 
+:root[data-theme="light"] .month-highlight {
+  color: #4338ca;
+  background: rgba(99, 102, 241, 0.14);
+  border-color: rgba(99, 102, 241, 0.5);
+}
+
 :root[data-theme="light"] .table-wrapper,
 :root[data-theme="light"] .config-theme,
 :root[data-theme="light"] .config-people,
