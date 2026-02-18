@@ -76,7 +76,7 @@ const renderHtml = ({ title, description, canonicalUrl, imageUrl }) => {
     <meta property="og:url" content="${safeUrl}" />
     <meta property="og:image" content="${safeImageUrl}" />
     <meta property="og:image:secure_url" content="${safeImageUrl}" />
-    <meta property="og:image:type" content="image/svg+xml" />
+    <meta property="og:image:type" content="image/png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content="Vista previa del formulario de informes por grupo" />
@@ -111,8 +111,8 @@ export default async function handler(req, res) {
       ? `${origin}/grupo-${groupNumber}`
       : `/grupo-${groupNumber}`;
     const imageUrl = origin
-      ? `${origin}/api/share-image?groupNumber=${groupNumber}`
-      : `/api/share-image?groupNumber=${groupNumber}`;
+      ? `${origin}/share-preview.png`
+      : `/share-preview.png`;
     const title = `Informe mensual de actividades - ${groupLabel}`;
     const description = `Acceso oficial al formulario de recopilación de informes para ${groupLabel}. Comparta este enlace con su grupo para registrar actividades mensuales.`;
 
