@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import ConfirmModal from "./ConfirmModal.jsx";
+import Pagination from "./Pagination.jsx";
 import { formatDateTime } from "../utils/reporting.js";
 
 const buildDefaultPersonForm = () => ({
@@ -45,6 +46,8 @@ const ACTIVITY_TABLE_SKELETON_COLUMNS = [
   "skeleton-md",
   "skeleton-md",
 ];
+
+const PAGINATION_PAGE_SIZE = 10;
 
 const getActivityDetailLabel = (detail) => {
   const value = String(detail || "").trim();
@@ -164,6 +167,8 @@ export default function ConfigView({
   const [formOpenDays, setFormOpenDays] = useState(10);
   const [settingsSubmitStatus, setSettingsSubmitStatus] = useState("idle");
   const [settingsSubmitMessage, setSettingsSubmitMessage] = useState("");
+  const [activityPage, setActivityPage] = useState(1);
+  const [peoplePageByGroup, setPeoplePageByGroup] = useState({});
   const [confirmState, setConfirmState] = useState({
     isOpen: false,
     title: "Confirmar acción",
@@ -181,6 +186,7 @@ export default function ConfigView({
   const loadPeople = async () => {
     if (!isAuthenticated || !canManagePeople) {
       setPeople([]);
+      setPeoplePageByGroup({});
       return;
     }
 
@@ -198,6 +204,7 @@ export default function ConfigView({
 
       if (response.status === 403) {
         setPeople([]);
+        setPeoplePageByGroup({});
         setLoadError("No tiene permisos para gestionar personas.");
         return;
       }
@@ -267,6 +274,7 @@ export default function ConfigView({
   const loadActivity = async () => {
     if (!isAuthenticated || !isSuperAdmin) {
       setActivityItems([]);
+      setActivityPage(1);
       setIsActivityLoading(false);
       setActivityLoadError("");
       return;
@@ -276,7 +284,7 @@ export default function ConfigView({
     setActivityLoadError("");
 
     try {
-      const response = await fetch("/api/auth/activity?limit=50");
+      const response = await fetch("/api/auth/activity?limit=200");
 
       if (response.status === 401) {
         onLogout();
@@ -286,6 +294,7 @@ export default function ConfigView({
 
       if (response.status === 403) {
         setActivityItems([]);
+        setActivityPage(1);
         setActivityLoadError("No tiene permisos para ver la actividad.");
         return;
       }
@@ -804,6 +813,81 @@ export default function ConfigView({
       }));
   }, [people]);
 
+  const activityTotalPages = useMemo(() => {
+    return Math.max(1, Math.ceil(activityItems.length / PAGINATION_PAGE_SIZE));
+  }, [activityItems.length]);
+
+  const safeActivityPage = useMemo(() => {
+    if (activityPage > activityTotalPages) {
+      return activityTotalPages;
+    }
+
+    if (activityPage < 1) {
+      return 1;
+    }
+
+    return activityPage;
+  }, [activityPage, activityTotalPages]);
+
+  const activityPageStartIndex = useMemo(() => {
+    return (safeActivityPage - 1) * PAGINATION_PAGE_SIZE;
+  }, [safeActivityPage]);
+
+  const pagedActivityItems = useMemo(() => {
+    return activityItems.slice(
+      activityPageStartIndex,
+      activityPageStartIndex + PAGINATION_PAGE_SIZE
+    );
+  }, [activityItems, activityPageStartIndex]);
+
+  useEffect(() => {
+    if (activityPage !== safeActivityPage) {
+      setActivityPage(safeActivityPage);
+    }
+  }, [activityPage, safeActivityPage]);
+
+  useEffect(() => {
+    setPeoplePageByGroup((previous) => {
+      const next = {};
+
+      peopleByGroup.forEach((groupBlock) => {
+        const key = String(groupBlock.groupNumber);
+        const totalPages = Math.max(
+          1,
+          Math.ceil(groupBlock.items.length / PAGINATION_PAGE_SIZE)
+        );
+        const previousPage = Number(previous[key] || 1);
+        const normalizedPage = Number.isInteger(previousPage) && previousPage > 0
+          ? previousPage
+          : 1;
+
+        next[key] = Math.min(normalizedPage, totalPages);
+      });
+
+      return next;
+    });
+  }, [peopleByGroup]);
+
+  const getPeoplePage = (groupNumber, groupItemsCount) => {
+    const key = String(groupNumber);
+    const requestedPage = Number(peoplePageByGroup[key] || 1);
+    const totalPages = Math.max(1, Math.ceil(groupItemsCount / PAGINATION_PAGE_SIZE));
+    const normalizedPage = Number.isInteger(requestedPage) && requestedPage > 0
+      ? requestedPage
+      : 1;
+
+    return Math.min(normalizedPage, totalPages);
+  };
+
+  const handlePeoplePageChange = (groupNumber, nextPage) => {
+    const key = String(groupNumber);
+
+    setPeoplePageByGroup((previous) => ({
+      ...previous,
+      [key]: nextPage,
+    }));
+  };
+
   if (!isAuthenticated) {
     return (
       <section>
@@ -1027,7 +1111,7 @@ export default function ConfigView({
                 ) : null}
                 {!isActivityLoading &&
                   !activityLoadError &&
-                  activityItems.map((item, index) => {
+                  pagedActivityItems.map((item, index) => {
                     const username = String(
                       item.resolvedUsername || item.username || "Usuario desconocido"
                     ).trim();
@@ -1036,7 +1120,7 @@ export default function ConfigView({
 
                     return (
                       <tr key={item.id || `${item.createdAt}-${index}`}>
-                        <td>{index + 1}</td>
+                        <td>{activityPageStartIndex + index + 1}</td>
                         <td>{formatDateTime(item.createdAt) || "-"}</td>
                         <td>{displayUser}</td>
                         <td>
@@ -1055,6 +1139,13 @@ export default function ConfigView({
               </tbody>
             </table>
           </div>
+          <Pagination
+            ariaLabel="Paginación de actividad de accesos"
+            totalItems={activityItems.length}
+            pageSize={PAGINATION_PAGE_SIZE}
+            currentPage={safeActivityPage}
+            onPageChange={setActivityPage}
+          />
         </section>
       ) : null}
 
@@ -1120,6 +1211,16 @@ export default function ConfigView({
                     groupBlock.groupNumber > 0
                       ? `${groupInfo?.name || `Grupo ${groupBlock.groupNumber}`} (Grupo ${groupBlock.groupNumber})`
                       : "Sin grupo";
+                  const groupCurrentPage = getPeoplePage(
+                    groupBlock.groupNumber,
+                    groupBlock.items.length
+                  );
+                  const groupPageStartIndex =
+                    (groupCurrentPage - 1) * PAGINATION_PAGE_SIZE;
+                  const pagedPeopleItems = groupBlock.items.slice(
+                    groupPageStartIndex,
+                    groupPageStartIndex + PAGINATION_PAGE_SIZE
+                  );
 
                   return (
                     <div className="closed-periods" key={`people-group-${groupBlock.groupNumber}`}>
@@ -1138,9 +1239,9 @@ export default function ConfigView({
                             </tr>
                           </thead>
                           <tbody>
-                            {groupBlock.items.map((person, index) => (
+                            {pagedPeopleItems.map((person, index) => (
                               <tr key={person.id}>
-                                <td>{index + 1}</td>
+                                <td>{groupPageStartIndex + index + 1}</td>
                                 <td>{person.name}</td>
                                 <td>{person.designation || "Publicador"}</td>
                                 <td>
@@ -1166,6 +1267,15 @@ export default function ConfigView({
                           </tbody>
                         </table>
                       </div>
+                      <Pagination
+                        ariaLabel={`Paginación de personas ${groupTitle}`}
+                        totalItems={groupBlock.items.length}
+                        pageSize={PAGINATION_PAGE_SIZE}
+                        currentPage={groupCurrentPage}
+                        onPageChange={(nextPage) =>
+                          handlePeoplePageChange(groupBlock.groupNumber, nextPage)
+                        }
+                      />
                     </div>
                   );
                 })
