@@ -53,10 +53,11 @@ const loadGroupName = async (groupNumber) => {
   }
 };
 
-const renderHtml = ({ title, description, canonicalUrl }) => {
+const renderHtml = ({ title, description, canonicalUrl, imageUrl }) => {
   const safeTitle = escapeHtml(title);
   const safeDescription = escapeHtml(description);
   const safeUrl = escapeHtml(canonicalUrl);
+  const safeImageUrl = escapeHtml(imageUrl);
 
   return `<!doctype html>
 <html lang="es">
@@ -73,9 +74,16 @@ const renderHtml = ({ title, description, canonicalUrl }) => {
     <meta property="og:title" content="${safeTitle}" />
     <meta property="og:description" content="${safeDescription}" />
     <meta property="og:url" content="${safeUrl}" />
-    <meta name="twitter:card" content="summary" />
+    <meta property="og:image" content="${safeImageUrl}" />
+    <meta property="og:image:secure_url" content="${safeImageUrl}" />
+    <meta property="og:image:type" content="image/svg+xml" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Vista previa del formulario de informes por grupo" />
+    <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="${safeTitle}" />
     <meta name="twitter:description" content="${safeDescription}" />
+    <meta name="twitter:image" content="${safeImageUrl}" />
   </head>
   <body>
     <main>
@@ -102,6 +110,9 @@ export default async function handler(req, res) {
     const canonicalUrl = origin
       ? `${origin}/grupo-${groupNumber}`
       : `/grupo-${groupNumber}`;
+    const imageUrl = origin
+      ? `${origin}/api/share-image?groupNumber=${groupNumber}`
+      : `/api/share-image?groupNumber=${groupNumber}`;
     const title = `Informe mensual de actividades - ${groupLabel}`;
     const description = `Acceso oficial al formulario de recopilación de informes para ${groupLabel}. Comparta este enlace con su grupo para registrar actividades mensuales.`;
 
@@ -112,6 +123,7 @@ export default async function handler(req, res) {
         title,
         description,
         canonicalUrl,
+        imageUrl,
       })
     );
   } catch (error) {
