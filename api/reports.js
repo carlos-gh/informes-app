@@ -6,6 +6,7 @@ import {
 } from "./_lib/auth.js";
 import { sql } from "./_lib/db.js";
 import { readJsonBody } from "./_lib/request.js";
+import { getFormOpenDays } from "./_lib/settings.js";
 
 export const config = {
   runtime: "nodejs",
@@ -105,6 +106,14 @@ const getReportMonthKey = (date) => {
 const getPreviousMonthKey = (date) => {
   const previousMonthDate = new Date(date.getFullYear(), date.getMonth() - 1, 1);
   return getReportMonthKey(previousMonthDate);
+};
+
+const isFormWindowOpen = (currentDate, formOpenDays) => {
+  const dayOfMonth = currentDate.getDate();
+  const parsedDays = Number(formOpenDays);
+  const safeDays = Number.isInteger(parsedDays) && parsedDays > 0 ? parsedDays : 10;
+
+  return dayOfMonth >= 1 && dayOfMonth <= safeDays;
 };
 
 const getReportDateFromKey = (monthKey) => {
@@ -505,6 +514,15 @@ export default async function handler(req, res) {
       if (!auth && (await isReportPeriodClosed(reportMonthKey, reportGroupNumber))) {
         res.status(409).json({ error: "Report period is closed" });
         return;
+      }
+
+      if (!auth) {
+        const formOpenDays = await getFormOpenDays();
+
+        if (!isFormWindowOpen(new Date(), formOpenDays)) {
+          res.status(403).json({ error: "Form window is closed" });
+          return;
+        }
       }
 
       const result = await sql`

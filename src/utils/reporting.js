@@ -46,9 +46,12 @@ export const getReportingLabelFromKey = (monthKey) => {
   );
 };
 
-export const isFormWindowOpen = (currentDate) => {
+export const isFormWindowOpen = (currentDate, formOpenDays = 10) => {
   const dayOfMonth = currentDate.getDate();
-  return dayOfMonth >= 1 && dayOfMonth <= 10;
+  const parsedDays = Number(formOpenDays);
+  const safeDays = Number.isInteger(parsedDays) && parsedDays > 0 ? parsedDays : 10;
+
+  return dayOfMonth >= 1 && dayOfMonth <= safeDays;
 };
 
 export const isNumericValue = (value) => {

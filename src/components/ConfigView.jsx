@@ -117,6 +117,9 @@ export default function ConfigView({
   const [activityItems, setActivityItems] = useState([]);
   const [isActivityLoading, setIsActivityLoading] = useState(false);
   const [activityLoadError, setActivityLoadError] = useState("");
+  const [formOpenDays, setFormOpenDays] = useState(10);
+  const [settingsSubmitStatus, setSettingsSubmitStatus] = useState("idle");
+  const [settingsSubmitMessage, setSettingsSubmitMessage] = useState("");
 
   const isAuthenticated = Boolean(authToken);
   const isSuperAdmin = true === Boolean(authUser?.isSuperAdmin);
@@ -259,11 +262,113 @@ export default function ConfigView({
     }
   };
 
+  const loadSettings = async () => {
+    if (!isAuthenticated || !isSuperAdmin) {
+      setFormOpenDays(10);
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/settings", {
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+        },
+      });
+
+      if (response.status === 401) {
+        onLogout();
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error("Failed to load settings");
+      }
+
+      const data = await response.json();
+      const parsedFormOpenDays = Number(data?.formOpenDays);
+
+      if (
+        Number.isInteger(parsedFormOpenDays) &&
+        parsedFormOpenDays >= 1 &&
+        parsedFormOpenDays <= 31
+      ) {
+        setFormOpenDays(parsedFormOpenDays);
+        return;
+      }
+    } catch (error) {
+      setSettingsSubmitStatus("error");
+      setSettingsSubmitMessage("No se pudieron cargar los parámetros del formulario.");
+    }
+  };
+
   useEffect(() => {
     loadPeople();
     loadGroups();
     loadActivity();
+    loadSettings();
   }, [authToken, canManagePeople, isSuperAdmin]);
+
+  const handleFormOpenDaysSubmit = async (event) => {
+    event.preventDefault();
+    setSettingsSubmitMessage("");
+
+    const parsedFormOpenDays = Number(formOpenDays);
+
+    if (
+      !Number.isInteger(parsedFormOpenDays) ||
+      parsedFormOpenDays < 1 ||
+      parsedFormOpenDays > 31
+    ) {
+      setSettingsSubmitStatus("error");
+      setSettingsSubmitMessage("Defina un valor válido entre 1 y 31 días.");
+      return;
+    }
+
+    setSettingsSubmitStatus("loading");
+
+    try {
+      const response = await fetch("/api/settings", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          formOpenDays: parsedFormOpenDays,
+        }),
+      });
+
+      if (response.status === 401) {
+        onLogout();
+        setSettingsSubmitStatus("error");
+        setSettingsSubmitMessage("Su sesión expiró. Inicie sesión de nuevo.");
+        return;
+      }
+
+      if (!response.ok) {
+        const errorMessage = await getErrorMessageFromResponse(
+          response,
+          "No se pudo guardar esta configuración."
+        );
+        throw new Error(errorMessage);
+      }
+
+      const data = await response.json();
+      const savedValue = Number(data?.formOpenDays);
+
+      if (Number.isInteger(savedValue) && savedValue >= 1 && savedValue <= 31) {
+        setFormOpenDays(savedValue);
+      }
+
+      setSettingsSubmitStatus("success");
+      setSettingsSubmitMessage("Configuración actualizada.");
+    } catch (error) {
+      setSettingsSubmitStatus("error");
+      setSettingsSubmitMessage(
+        String(error.message || "No se pudo guardar esta configuración.")
+      );
+    }
+  };
 
   const resetForm = () => {
     setFormState((previous) => ({
@@ -632,6 +737,55 @@ export default function ConfigView({
           </p>
         </div>
       </div>
+
+      {isSuperAdmin ? (
+        <section className="config-theme">
+          <h2 className="config-section-title">Recopilación de informes</h2>
+          <p className="config-section-description">
+            Defina cuántos días estará abierto el formulario público cada mes.
+          </p>
+
+          <form className="form" onSubmit={handleFormOpenDaysSubmit} noValidate>
+            <div className="field">
+              <label htmlFor="config-form-open-days">
+                Días abiertos del formulario <span className="required">*</span>
+              </label>
+              <input
+                id="config-form-open-days"
+                name="config-form-open-days"
+                type="number"
+                min="1"
+                max="31"
+                inputMode="numeric"
+                value={formOpenDays}
+                onChange={(event) => setFormOpenDays(event.target.value)}
+                required
+              />
+            </div>
+
+            <div className="form-actions">
+              <button
+                className="submit"
+                type="submit"
+                disabled={settingsSubmitStatus === "loading"}
+              >
+                {settingsSubmitStatus === "loading"
+                  ? "Guardando..."
+                  : "Guardar configuración"}
+              </button>
+            </div>
+          </form>
+
+          {settingsSubmitMessage ? (
+            <div
+              className={`feedback ${settingsSubmitStatus === "success" ? "success" : "error"}`}
+              role="status"
+            >
+              {settingsSubmitMessage}
+            </div>
+          ) : null}
+        </section>
+      ) : null}
 
       {isSuperAdmin ? (
         <section className="config-people">

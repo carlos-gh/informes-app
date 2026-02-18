@@ -7,6 +7,8 @@ import {
   isNumericValue,
 } from "../utils/reporting.js";
 
+const DEFAULT_FORM_OPEN_DAYS = 10;
+
 const SubmitReportIcon = () => (
   <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
     <path
@@ -33,7 +35,11 @@ export default function ReportFormView({
     [reportDate]
   );
   const reportMonthKey = useMemo(() => getReportMonthKey(reportDate), [reportDate]);
-  const isOpen = useMemo(() => isFormWindowOpen(currentDate), [currentDate]);
+  const [formOpenDays, setFormOpenDays] = useState(DEFAULT_FORM_OPEN_DAYS);
+  const isOpen = useMemo(
+    () => isFormWindowOpen(currentDate, formOpenDays),
+    [currentDate, formOpenDays]
+  );
   const canSubmit = isOpen || isAuthenticated;
   const isGroupUser = useMemo(() => {
     return !authUser?.isSuperAdmin && Boolean(authUser?.groupNumber);
@@ -141,6 +147,42 @@ export default function ReportFormView({
     };
 
     loadGroups();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadSettings = async () => {
+      try {
+        const response = await fetch("/api/settings");
+
+        if (!response.ok) {
+          throw new Error("Failed to load settings");
+        }
+
+        const data = await response.json();
+        const parsedDays = Number(data?.formOpenDays);
+
+        if (
+          isMounted &&
+          Number.isInteger(parsedDays) &&
+          parsedDays >= 1 &&
+          parsedDays <= 31
+        ) {
+          setFormOpenDays(parsedDays);
+        }
+      } catch (error) {
+        if (isMounted) {
+          setFormOpenDays(DEFAULT_FORM_OPEN_DAYS);
+        }
+      }
+    };
+
+    loadSettings();
 
     return () => {
       isMounted = false;
@@ -276,6 +318,14 @@ export default function ReportFormView({
           return;
         }
 
+        if (response.status === 403) {
+          setSubmitStatus("error");
+          setSubmitMessage(
+            `El formulario público solo está disponible los primeros ${formOpenDays} días del mes.`
+          );
+          return;
+        }
+
         throw new Error("Network response was not ok");
       }
 
@@ -311,8 +361,9 @@ export default function ReportFormView({
         <div className="closed">
           <p className="closed-title">El periodo para enviar informes ha terminado.</p>
           <p className="closed-message">
-            El formulario solo está disponible los primeros dias del mes. Si desea enviar un informe tardío, contacte a
-            su superintendente de grupo.
+            El formulario solo está disponible los primeros {formOpenDays}{" "}
+            {formOpenDays === 1 ? "día" : "días"} del mes. Si desea enviar un informe
+            tardío, contacte a su superintendente de grupo.
           </p>
         </div>
       )}
