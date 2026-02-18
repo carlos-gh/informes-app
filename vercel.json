@@ -1,6 +1,28 @@
 {
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/$1" },
+    {
+      "source": "/grupo-(\\d+)",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": ".*(WhatsApp|whatsapp|facebookexternalhit|Facebot|Twitterbot|TelegramBot|LinkedInBot|Slackbot).*"
+        }
+      ],
+      "destination": "/api/share-meta?groupNumber=$1"
+    },
+    {
+      "source": "/grupo-(\\d+)/",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": ".*(WhatsApp|whatsapp|facebookexternalhit|Facebot|Twitterbot|TelegramBot|LinkedInBot|Slackbot).*"
+        }
+      ],
+      "destination": "/api/share-meta?groupNumber=$1"
+    },
     { "source": "/(.*)", "destination": "/" }
   ]
 }
