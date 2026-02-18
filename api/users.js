@@ -305,6 +305,72 @@ export default async function handler(req, res) {
       return;
     }
 
+    if (req.method === "DELETE") {
+      const auth = await requireSuperAdminAuth(req, res);
+
+      if (!auth) {
+        return;
+      }
+
+      const userId = getUserIdFromRequest(req);
+
+      if (!userId) {
+        res.status(400).json({ error: "Invalid user id" });
+        return;
+      }
+
+      const currentUserResult = await sql`
+        SELECT
+          id,
+          role
+        FROM users
+        WHERE id = ${userId}
+        LIMIT 1;
+      `;
+
+      const currentUser = currentUserResult.rows[0] || null;
+
+      if (!currentUser) {
+        res.status(404).json({ error: "User not found" });
+        return;
+      }
+
+      if (ROLE_NAMES.superadmin === String(currentUser.role || "")) {
+        res.status(403).json({ error: "Superadmin user cannot be deleted here" });
+        return;
+      }
+
+      await sql`
+        UPDATE groups
+        SET
+          superintendent_user_id = CASE
+            WHEN superintendent_user_id = ${userId} THEN NULL
+            ELSE superintendent_user_id
+          END,
+          assistant_user_id = CASE
+            WHEN assistant_user_id = ${userId} THEN NULL
+            ELSE assistant_user_id
+          END,
+          updated_at = NOW()
+        WHERE superintendent_user_id = ${userId}
+           OR assistant_user_id = ${userId};
+      `;
+
+      const deleteResult = await sql`
+        DELETE FROM users
+        WHERE id = ${userId}
+        RETURNING id;
+      `;
+
+      if (0 === deleteResult.rows.length) {
+        res.status(404).json({ error: "User not found" });
+        return;
+      }
+
+      res.status(200).json({ ok: true, id: userId });
+      return;
+    }
+
     res.status(405).json({ error: "Method not allowed" });
   } catch (error) {
     res.status(500).json({ error: "Database error" });

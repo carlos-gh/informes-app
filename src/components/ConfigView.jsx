@@ -675,6 +675,54 @@ export default function ConfigView({
     setIsGroupModalOpen(true);
   };
 
+  const handleDeleteGroup = async (groupNumber) => {
+    const isConfirmed = await new Promise((resolve) => {
+      setConfirmState({
+        isOpen: true,
+        title: "Eliminar grupo",
+        message: "¿Desea eliminar este grupo?",
+        confirmLabel: "Eliminar",
+        cancelLabel: "Cancelar",
+      });
+      setConfirmResolver(() => resolve);
+    });
+
+    if (!isConfirmed) {
+      return;
+    }
+
+    setGroupSubmitStatus("loading");
+    setGroupSubmitMessage("");
+
+    try {
+      const response = await fetch(`/api/groups?groupNumber=${groupNumber}`, {
+        method: "DELETE",
+      });
+
+      if (response.status === 401) {
+        onLogout();
+        setGroupSubmitStatus("error");
+        setGroupSubmitMessage("Su sesión expiró. Inicie sesión de nuevo.");
+        return;
+      }
+
+      if (!response.ok) {
+        const errorMessage = await getErrorMessageFromResponse(
+          response,
+          "No se pudo eliminar el grupo."
+        );
+        throw new Error(errorMessage);
+      }
+
+      setGroupSubmitStatus("success");
+      setGroupSubmitMessage("Grupo eliminado.");
+      await loadGroups();
+    } catch (error) {
+      setGroupSubmitStatus("error");
+      setGroupSubmitMessage(String(error.message || "No se pudo eliminar el grupo."));
+    }
+  };
+
   const handleGroupSubmit = async (event) => {
     event.preventDefault();
     setGroupSubmitMessage("");
@@ -894,13 +942,22 @@ export default function ConfigView({
                       <td>{group.superintendentUsername || "-"}</td>
                       <td>{group.assistantUsername || "-"}</td>
                       <td>
-                        <button
-                          className="table-button"
-                          type="button"
-                          onClick={() => handleEditGroup(group)}
-                        >
-                          Editar
-                        </button>
+                        <div className="table-actions">
+                          <button
+                            className="table-button"
+                            type="button"
+                            onClick={() => handleEditGroup(group)}
+                          >
+                            Editar
+                          </button>
+                          <button
+                            className="table-button danger"
+                            type="button"
+                            onClick={() => handleDeleteGroup(group.groupNumber)}
+                          >
+                            Eliminar
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}

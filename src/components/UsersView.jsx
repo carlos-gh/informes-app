@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import ConfirmModal from "./ConfirmModal.jsx";
 
 const buildDefaultForm = () => ({
   username: "",
@@ -46,6 +47,14 @@ export default function UsersView({ authToken, authUser, onLogout }) {
   const [formErrors, setFormErrors] = useState({});
   const [submitStatus, setSubmitStatus] = useState("idle");
   const [submitMessage, setSubmitMessage] = useState("");
+  const [confirmState, setConfirmState] = useState({
+    isOpen: false,
+    title: "Confirmar acción",
+    message: "",
+    confirmLabel: "Confirmar",
+    cancelLabel: "Cancelar",
+  });
+  const [confirmResolver, setConfirmResolver] = useState(null);
 
   const loadData = async () => {
     if (!isAuthenticated || !isSuperAdmin) {
@@ -213,6 +222,54 @@ export default function UsersView({ authToken, authUser, onLogout }) {
     }
   };
 
+  const handleDelete = async (userId) => {
+    const isConfirmed = await new Promise((resolve) => {
+      setConfirmState({
+        isOpen: true,
+        title: "Eliminar usuario",
+        message: "¿Desea eliminar este usuario?",
+        confirmLabel: "Eliminar",
+        cancelLabel: "Cancelar",
+      });
+      setConfirmResolver(() => resolve);
+    });
+
+    if (!isConfirmed) {
+      return;
+    }
+
+    setSubmitStatus("loading");
+    setSubmitMessage("");
+
+    try {
+      const response = await fetch(`/api/users?id=${userId}`, {
+        method: "DELETE",
+      });
+
+      if (response.status === 401) {
+        onLogout();
+        setSubmitStatus("error");
+        setSubmitMessage("Su sesión expiró. Inicie sesión de nuevo.");
+        return;
+      }
+
+      if (!response.ok) {
+        const errorMessage = await getErrorMessageFromResponse(
+          response,
+          "No se pudo eliminar el usuario."
+        );
+        throw new Error(errorMessage);
+      }
+
+      setSubmitStatus("success");
+      setSubmitMessage("Usuario eliminado.");
+      await loadData();
+    } catch (error) {
+      setSubmitStatus("error");
+      setSubmitMessage(String(error.message || "No se pudo eliminar el usuario."));
+    }
+  };
+
   if (!isAuthenticated) {
     return (
       <section>
@@ -307,13 +364,22 @@ export default function UsersView({ authToken, authUser, onLogout }) {
                       {user.role === "superadmin" ? (
                         <span className="table-preview-tag">Protegido</span>
                       ) : (
-                        <button
-                          className="table-button"
-                          type="button"
-                          onClick={() => handleEdit(user)}
-                        >
-                          Editar
-                        </button>
+                        <div className="table-actions">
+                          <button
+                            className="table-button"
+                            type="button"
+                            onClick={() => handleEdit(user)}
+                          >
+                            Editar
+                          </button>
+                          <button
+                            className="table-button danger"
+                            type="button"
+                            onClick={() => handleDelete(user.id)}
+                          >
+                            Eliminar
+                          </button>
+                        </div>
                       )}
                     </td>
                   </tr>
@@ -451,6 +517,36 @@ export default function UsersView({ authToken, authUser, onLogout }) {
           </div>
         </div>
       ) : null}
+
+      <ConfirmModal
+        isOpen={confirmState.isOpen}
+        title={confirmState.title}
+        message={confirmState.message}
+        confirmLabel={confirmState.confirmLabel}
+        cancelLabel={confirmState.cancelLabel}
+        onConfirm={() => {
+          if (confirmResolver) {
+            confirmResolver(true);
+          }
+
+          setConfirmResolver(null);
+          setConfirmState((previous) => ({
+            ...previous,
+            isOpen: false,
+          }));
+        }}
+        onCancel={() => {
+          if (confirmResolver) {
+            confirmResolver(false);
+          }
+
+          setConfirmResolver(null);
+          setConfirmState((previous) => ({
+            ...previous,
+            isOpen: false,
+          }));
+        }}
+      />
     </section>
   );
 }
