@@ -13,6 +13,7 @@ import {
 import { Bar, Line } from "react-chartjs-2";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import AdminMonthDetailView from "./AdminMonthDetailView.jsx";
+import ConfirmModal from "./ConfirmModal.jsx";
 import {
   formatDateTime,
   getReportDate,
@@ -141,6 +142,14 @@ export default function AdminView({ authToken, authUser, onLogout }) {
     buildDefaultAdminForm(defaultMonthKey)
   );
   const [formErrors, setFormErrors] = useState({});
+  const [confirmState, setConfirmState] = useState({
+    isOpen: false,
+    title: "Confirmar acción",
+    message: "",
+    confirmLabel: "Confirmar",
+    cancelLabel: "Cancelar",
+  });
+  const [confirmResolver, setConfirmResolver] = useState(null);
 
   const isAuthenticated = Boolean(authToken);
   const isSuperAdmin = true === Boolean(authUser?.isSuperAdmin);
@@ -601,6 +610,36 @@ export default function AdminView({ authToken, authUser, onLogout }) {
     }
   };
 
+  const requestConfirmation = ({
+    title = "Confirmar acción",
+    message = "",
+    confirmLabel = "Confirmar",
+    cancelLabel = "Cancelar",
+  }) => {
+    return new Promise((resolve) => {
+      setConfirmState({
+        isOpen: true,
+        title,
+        message,
+        confirmLabel,
+        cancelLabel,
+      });
+      setConfirmResolver(() => resolve);
+    });
+  };
+
+  const closeConfirmation = (result) => {
+    if (confirmResolver) {
+      confirmResolver(Boolean(result));
+    }
+
+    setConfirmResolver(null);
+    setConfirmState((previous) => ({
+      ...previous,
+      isOpen: false,
+    }));
+  };
+
   const loadPeople = async () => {
     if (!isAuthenticated) {
       return;
@@ -756,7 +795,13 @@ export default function AdminView({ authToken, authUser, onLogout }) {
       return;
     }
 
-    if (!window.confirm(closePeriodConfirmMessage)) {
+    const isConfirmed = await requestConfirmation({
+      title: "Cerrar periodo",
+      message: closePeriodConfirmMessage,
+      confirmLabel: "Cerrar periodo",
+    });
+
+    if (!isConfirmed) {
       return;
     }
 
@@ -811,11 +856,13 @@ export default function AdminView({ authToken, authUser, onLogout }) {
       return;
     }
 
-    if (
-      !window.confirm(
-        `¿Desea reabrir el periodo de ${activeMonthLabel} para ${activeGroupLabel}? El mes volverá a estar habilitado para edición.`
-      )
-    ) {
+    const isConfirmed = await requestConfirmation({
+      title: "Reabrir periodo",
+      message: `¿Desea reabrir el periodo de ${activeMonthLabel} para ${activeGroupLabel}? El mes volverá a estar habilitado para edición.`,
+      confirmLabel: "Reabrir periodo",
+    });
+
+    if (!isConfirmed) {
       return;
     }
 
@@ -1165,7 +1212,13 @@ export default function AdminView({ authToken, authUser, onLogout }) {
       return;
     }
 
-    if (!window.confirm("¿Desea eliminar este registro?")) {
+    const isConfirmed = await requestConfirmation({
+      title: "Eliminar registro",
+      message: "¿Desea eliminar este registro?",
+      confirmLabel: "Eliminar",
+    });
+
+    if (!isConfirmed) {
       return;
     }
 
@@ -1973,6 +2026,16 @@ export default function AdminView({ authToken, authUser, onLogout }) {
           />
         </div>
       ) : null}
+
+      <ConfirmModal
+        isOpen={confirmState.isOpen}
+        title={confirmState.title}
+        message={confirmState.message}
+        confirmLabel={confirmState.confirmLabel}
+        cancelLabel={confirmState.cancelLabel}
+        onConfirm={() => closeConfirmation(true)}
+        onCancel={() => closeConfirmation(false)}
+      />
     </section>
   );
 }

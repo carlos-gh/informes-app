@@ -1380,6 +1380,21 @@ input:disabled {
   max-width: 1040px;
 }
 
+.modal.modal-confirm {
+  max-width: 560px;
+}
+
+.confirm-message {
+  margin: 0;
+  font-size: 0.98rem;
+  line-height: 1.6;
+  white-space: pre-line;
+}
+
+.confirm-actions {
+  justify-content: flex-end;
+}
+
 .stats-toolbar {
   display: flex;
   flex-wrap: wrap;

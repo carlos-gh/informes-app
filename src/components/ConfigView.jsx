@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import ConfirmModal from "./ConfirmModal.jsx";
 import { formatDateTime } from "../utils/reporting.js";
 
 const buildDefaultPersonForm = () => ({
@@ -124,6 +125,14 @@ export default function ConfigView({
   const [formOpenDays, setFormOpenDays] = useState(10);
   const [settingsSubmitStatus, setSettingsSubmitStatus] = useState("idle");
   const [settingsSubmitMessage, setSettingsSubmitMessage] = useState("");
+  const [confirmState, setConfirmState] = useState({
+    isOpen: false,
+    title: "Confirmar acción",
+    message: "",
+    confirmLabel: "Confirmar",
+    cancelLabel: "Cancelar",
+  });
+  const [confirmResolver, setConfirmResolver] = useState(null);
 
   const isAuthenticated = Boolean(authToken);
   const isSuperAdmin = true === Boolean(authUser?.isSuperAdmin);
@@ -427,7 +436,18 @@ export default function ConfigView({
   };
 
   const handleDelete = async (personId) => {
-    if (!window.confirm("¿Desea eliminar esta persona?")) {
+    const isConfirmed = await new Promise((resolve) => {
+      setConfirmState({
+        isOpen: true,
+        title: "Eliminar persona",
+        message: "¿Desea eliminar esta persona?",
+        confirmLabel: "Eliminar",
+        cancelLabel: "Cancelar",
+      });
+      setConfirmResolver(() => resolve);
+    });
+
+    if (!isConfirmed) {
       return;
     }
 
@@ -1306,6 +1326,36 @@ export default function ConfigView({
           </div>
         </div>
       ) : null}
+
+      <ConfirmModal
+        isOpen={confirmState.isOpen}
+        title={confirmState.title}
+        message={confirmState.message}
+        confirmLabel={confirmState.confirmLabel}
+        cancelLabel={confirmState.cancelLabel}
+        onConfirm={() => {
+          if (confirmResolver) {
+            confirmResolver(true);
+          }
+
+          setConfirmResolver(null);
+          setConfirmState((previous) => ({
+            ...previous,
+            isOpen: false,
+          }));
+        }}
+        onCancel={() => {
+          if (confirmResolver) {
+            confirmResolver(false);
+          }
+
+          setConfirmResolver(null);
+          setConfirmState((previous) => ({
+            ...previous,
+            isOpen: false,
+          }));
+        }}
+      />
     </section>
   );
 }
