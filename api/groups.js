@@ -73,7 +73,9 @@ const validateGroupManagerUser = async (userId) => {
     return false;
   }
 
-  if (ROLE_NAMES.groupAdmin !== String(user.role || "")) {
+  const role = String(user.role || "");
+
+  if (role !== ROLE_NAMES.groupAdmin && role !== ROLE_NAMES.superadmin) {
     return false;
   }
 

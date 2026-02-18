@@ -43,6 +43,7 @@ const ACTIVITY_TABLE_SKELETON_COLUMNS = [
   "skeleton-sm",
   "skeleton-sm",
   "skeleton-md",
+  "skeleton-md",
 ];
 
 const getActivityDetailLabel = (detail) => {
@@ -92,6 +93,44 @@ const getErrorMessageFromResponse = async (response, fallbackMessage) => {
   } catch (error) {
     return fallbackMessage;
   }
+};
+
+const getDeviceLabelFromUserAgent = (userAgent) => {
+  const value = String(userAgent || "").toLowerCase();
+
+  if (!value) {
+    return "-";
+  }
+
+  if (value.includes("iphone")) {
+    return "iPhone";
+  }
+
+  if (value.includes("ipad")) {
+    return "iPad";
+  }
+
+  if (value.includes("android")) {
+    return value.includes("mobile") ? "Android (móvil)" : "Android";
+  }
+
+  if (value.includes("windows")) {
+    return "Windows";
+  }
+
+  if (value.includes("macintosh") || value.includes("mac os")) {
+    return "Mac";
+  }
+
+  if (value.includes("linux")) {
+    return "Linux";
+  }
+
+  if (value.includes("mobile")) {
+    return "Móvil";
+  }
+
+  return "Otro";
 };
 
 export default function ConfigView({
@@ -207,9 +246,14 @@ export default function ConfigView({
       const groupsData = await groupsResponse.json();
       const usersData = await usersResponse.json();
 
-      const superintendentCandidates = (usersData.items || []).filter(
-        (user) => user.role === "group_admin" && true === user.isActive
-      );
+      const superintendentCandidates = (usersData.items || []).filter((user) => {
+        const role = String(user.role || "");
+
+        return (
+          (role === "group_admin" || role === "superadmin") &&
+          true === user.isActive
+        );
+      });
 
       setGroups(groupsData.items || []);
       setGroupUsers(superintendentCandidates);
@@ -898,6 +942,7 @@ export default function ConfigView({
                   <th>Usuario</th>
                   <th>Resultado</th>
                   <th>Detalle</th>
+                  <th>Dispositivo</th>
                   <th>IP</th>
                 </tr>
               </thead>
@@ -915,12 +960,12 @@ export default function ConfigView({
                   : null}
                 {!isActivityLoading && activityLoadError ? (
                   <tr>
-                    <td colSpan={6}>{activityLoadError}</td>
+                    <td colSpan={7}>{activityLoadError}</td>
                   </tr>
                 ) : null}
                 {!isActivityLoading && !activityLoadError && activityItems.length === 0 ? (
                   <tr>
-                    <td colSpan={6}>No hay eventos de acceso registrados.</td>
+                    <td colSpan={7}>No hay eventos de acceso registrados.</td>
                   </tr>
                 ) : null}
                 {!isActivityLoading &&
@@ -943,6 +988,9 @@ export default function ConfigView({
                             : "Acceso fallido"}
                         </td>
                         <td>{getActivityDetailLabel(item.detail)}</td>
+                        <td title={item.userAgent || ""}>
+                          {getDeviceLabelFromUserAgent(item.userAgent)}
+                        </td>
                         <td>{item.ipAddress || "-"}</td>
                       </tr>
                     );
@@ -1270,6 +1318,7 @@ export default function ConfigView({
                   {groupUsers.map((user) => (
                     <option key={user.id} value={user.id}>
                       {user.username}
+                      {user.role === "superadmin" ? " (Superadmin)" : ""}
                     </option>
                   ))}
                 </select>
@@ -1296,6 +1345,7 @@ export default function ConfigView({
                   {groupUsers.map((user) => (
                     <option key={user.id} value={user.id}>
                       {user.username}
+                      {user.role === "superadmin" ? " (Superadmin)" : ""}
                     </option>
                   ))}
                 </select>
