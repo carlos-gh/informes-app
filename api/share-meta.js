@@ -105,7 +105,7 @@ export default async function handler(req, res) {
     }
 
     const groupName = await loadGroupName(groupNumber);
-    const groupLabel = groupName ? `${groupName} (Grupo ${groupNumber})` : `Grupo ${groupNumber}`;
+    const groupLabel = groupName ? `${groupName}` : `Grupo ${groupNumber}`;
     const origin = resolveOrigin(req);
     const canonicalUrl = origin
       ? `${origin}/grupo-${groupNumber}`
@@ -114,7 +114,7 @@ export default async function handler(req, res) {
       ? `${origin}/share-preview.png`
       : `/share-preview.png`;
     const title = `Informe mensual de actividades - ${groupLabel}`;
-    const description = `Acceso oficial al formulario de recopilación de informes para ${groupLabel}. Comparta este enlace con su grupo para registrar actividades mensuales.`;
+    const description = `Acceso oficial al formulario de recopilación de informes para ${groupLabel}.`;
 
     res.setHeader("Content-Type", "text/html; charset=utf-8");
     res.setHeader("Cache-Control", "public, max-age=0, s-maxage=600, stale-while-revalidate=86400");
