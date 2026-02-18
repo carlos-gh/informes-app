@@ -1110,7 +1110,7 @@ input:disabled {
   padding: 20px;
   background: rgba(2, 6, 23, 0.46);
   pointer-events: none;
-  animation: report-success-overlay-fade 2.8s ease forwards;
+  animation: report-success-overlay-fade 3.8s ease forwards;
 }
 
 .report-success-card {

@@ -222,7 +222,7 @@ export default function ReportFormView({
     const timeoutId = window.setTimeout(() => {
       setSubmitStatus("idle");
       setSubmitMessage("");
-    }, 2800);
+    }, 3800);
 
     return () => {
       window.clearTimeout(timeoutId);
