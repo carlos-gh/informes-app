@@ -22,6 +22,20 @@ const SubmitReportIcon = () => (
   </svg>
 );
 
+const SuccessCheckIcon = () => (
+  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+    <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="1.8" />
+    <path
+      d="m8 12 2.5 2.5L16 9"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
 export default function ReportFormView({
   isAuthenticated = false,
   authUser = null,
@@ -199,6 +213,21 @@ export default function ReportFormView({
       groupNumber: lockedGroupNumber,
     }));
   }, [lockedGroupNumber]);
+
+  useEffect(() => {
+    if (submitStatus !== "success") {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setSubmitStatus("idle");
+      setSubmitMessage("");
+    }, 2800);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [submitStatus]);
 
   const updateFormData = (field, value) => {
     setFormData((previous) => ({
@@ -530,17 +559,26 @@ export default function ReportFormView({
             <span>{submitStatus === "loading" ? "Enviando..." : "Enviar informe"}</span>
           </button>
 
-          {submitMessage ? (
-            <div
-              className={`feedback ${
-                submitStatus === "success" ? "success report-success" : "error"
-              }`}
-              role="status"
-            >
+          {submitMessage && submitStatus !== "success" ? (
+            <div className="feedback error" role="status">
               {submitMessage}
             </div>
           ) : null}
         </form>
+      ) : null}
+
+      {submitStatus === "success" ? (
+        <div className="report-success-overlay" role="status" aria-live="polite">
+          <div className="report-success-card">
+            <span className="report-success-icon" aria-hidden="true">
+              <SuccessCheckIcon />
+            </span>
+            <p className="report-success-title">Informe enviado</p>
+            <p className="report-success-message">
+              {submitMessage || "Su informe fue enviado correctamente."}
+            </p>
+          </div>
+        </div>
       ) : null}
     </section>
   );
