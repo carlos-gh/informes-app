@@ -91,7 +91,6 @@ export default function ProfileView({
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${authToken}`,
         },
         body: JSON.stringify({
           fullName: String(nameFormState.fullName || "").replace(/\s+/g, " ").trim(),
@@ -140,7 +139,6 @@ export default function ProfileView({
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${authToken}`,
         },
         body: JSON.stringify({
           currentPassword: formState.currentPassword,

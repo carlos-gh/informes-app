@@ -1,10 +1,13 @@
 import {
   authenticateUser,
+  clearAuthTokenCookie,
   createToken,
   ensureIdentitySchema,
   getSafeAuthUser,
   logAuthActivity,
+  setAuthTokenCookie,
 } from "../_lib/auth.js";
+import { consumeRateLimit } from "../_lib/rate-limit.js";
 import { readJsonBody } from "../_lib/request.js";
 import { getRequestIp, verifyTurnstileToken } from "../_lib/turnstile.js";
 
@@ -26,7 +29,22 @@ export default async function handler(req, res) {
   try {
     await ensureIdentitySchema();
   } catch (error) {
-    res.status(500).json({ error: "Database error", detail: String(error) });
+    res.status(500).json({ error: "Database error" });
+    return;
+  }
+
+  const requestIp = getRequestIp(req) || "unknown";
+  const requestUserAgent = getRequestUserAgent(req);
+  const ipRateLimit = consumeRateLimit({
+    key: `login:ip:${requestIp}`,
+    limit: 25,
+    windowMs: 15 * 60 * 1000,
+    blockMs: 15 * 60 * 1000,
+  });
+
+  if (!ipRateLimit.allowed) {
+    res.setHeader("Retry-After", String(Math.max(1, Math.ceil(ipRateLimit.retryAfterMs / 1000))));
+    res.status(429).json({ error: "Too many attempts. Try again later." });
     return;
   }
 
@@ -36,8 +54,8 @@ export default async function handler(req, res) {
       await logAuthActivity({
         eventType: "login_failure",
         detail: "invalid_payload",
-        ipAddress: getRequestIp(req),
-        userAgent: getRequestUserAgent(req),
+        ipAddress: requestIp,
+        userAgent: requestUserAgent,
       });
     } catch (error) {
       // Ignore logging failures to avoid blocking authentication flow.
@@ -48,8 +66,33 @@ export default async function handler(req, res) {
   }
 
   const { username = "", password = "", turnstileToken = "" } = body;
-  const requestIp = getRequestIp(req);
-  const requestUserAgent = getRequestUserAgent(req);
+  const normalizedUsername = String(username || "")
+    .trim()
+    .toLowerCase();
+  const accountRateLimit = consumeRateLimit({
+    key: `login:user:${normalizedUsername || "unknown"}:${requestIp}`,
+    limit: 8,
+    windowMs: 15 * 60 * 1000,
+    blockMs: 30 * 60 * 1000,
+  });
+
+  if (!accountRateLimit.allowed) {
+    try {
+      await logAuthActivity({
+        eventType: "login_failure",
+        username: normalizedUsername,
+        detail: "rate_limited",
+        ipAddress: requestIp,
+        userAgent: requestUserAgent,
+      });
+    } catch (error) {
+      // Ignore logging failures to avoid blocking authentication flow.
+    }
+
+    res.setHeader("Retry-After", String(Math.max(1, Math.ceil(accountRateLimit.retryAfterMs / 1000))));
+    res.status(429).json({ error: "Too many attempts. Try again later." });
+    return;
+  }
 
   const verification = await verifyTurnstileToken({
     token: String(turnstileToken),
@@ -107,7 +150,7 @@ export default async function handler(req, res) {
       // Ignore logging failures to avoid blocking authentication flow.
     }
 
-    res.status(500).json({ error: "Authentication error", detail: String(error) });
+    res.status(500).json({ error: "Authentication error" });
     return;
   }
 
@@ -147,6 +190,8 @@ export default async function handler(req, res) {
   }
 
   const { token, expiresAt } = createToken(authUser);
+  clearAuthTokenCookie(req, res);
+  setAuthTokenCookie(req, res, token);
 
   try {
     await logAuthActivity({
@@ -161,5 +206,5 @@ export default async function handler(req, res) {
     // Ignore logging failures to avoid blocking authentication flow.
   }
 
-  res.status(200).json({ token, expiresAt, user: getSafeAuthUser(authUser) });
+  res.status(200).json({ ok: true, expiresAt, user: getSafeAuthUser(authUser) });
 }

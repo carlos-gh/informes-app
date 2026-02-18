@@ -10,7 +10,6 @@ import PageHeader from "./components/PageHeader.jsx";
 import ProfileView from "./components/ProfileView.jsx";
 import ReportFormView from "./components/ReportFormView.jsx";
 import UsersView from "./components/UsersView.jsx";
-import { clearToken, getStoredToken, storeToken } from "./utils/authStorage.js";
 import { getReportingLabelFromKey } from "./utils/reporting.js";
 import { getStoredTheme, storeTheme } from "./utils/themeStorage.js";
 
@@ -45,28 +44,15 @@ export default function App() {
   const isAuthenticated = Boolean(authToken);
 
   useEffect(() => {
-    setAuthToken(getStoredToken());
-  }, []);
-
-  useEffect(() => {
     setTheme(getStoredTheme());
   }, []);
 
   useEffect(() => {
-    if (!authToken) {
-      setAuthUser(null);
-      return;
-    }
-
     let isMounted = true;
 
     const loadCurrentUser = async () => {
       try {
-        const response = await fetch("/api/auth/me", {
-          headers: {
-            Authorization: `Bearer ${authToken}`,
-          },
-        });
+        const response = await fetch("/api/auth/me");
 
         if (!response.ok) {
           throw new Error("Unauthorized");
@@ -76,12 +62,12 @@ export default function App() {
 
         if (isMounted) {
           setAuthUser(data.user || null);
+          setAuthToken("session");
         }
       } catch (error) {
         if (isMounted) {
-          clearToken();
-          setAuthToken("");
           setAuthUser(null);
+          setAuthToken("");
         }
       }
     };
@@ -91,7 +77,7 @@ export default function App() {
     return () => {
       isMounted = false;
     };
-  }, [authToken]);
+  }, []);
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
@@ -149,22 +135,27 @@ export default function App() {
   }, [location.pathname]);
 
   const handleLogin = (session) => {
-    const token =
-      typeof session === "string" ? session : String(session?.token || "").trim();
+    const user = session?.user || null;
 
-    if (!token) {
+    if (!user) {
       return;
     }
 
-    storeToken(token);
-    setAuthToken(token);
-    setAuthUser(session?.user || null);
+    setAuthToken("session");
+    setAuthUser(user);
   };
 
-  const handleLogout = () => {
-    clearToken();
-    setAuthToken("");
-    setAuthUser(null);
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/auth/logout", {
+        method: "POST",
+      });
+    } catch (error) {
+      // Ignore logout transport errors and clear local session state.
+    } finally {
+      setAuthToken("");
+      setAuthUser(null);
+    }
   };
 
   const handleThemeChange = (nextTheme) => {

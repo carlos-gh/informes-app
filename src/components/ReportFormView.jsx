@@ -289,17 +289,11 @@ export default function ReportFormView({
     setSubmitStatus("loading");
 
     try {
-      const headers = {
-        "Content-Type": "application/json",
-      };
-
-      if (isAuthenticated && authToken) {
-        headers.Authorization = `Bearer ${authToken}`;
-      }
-
       const response = await fetch("/api/reports", {
         method: "POST",
-        headers,
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify(payload),
       });
 
@@ -323,6 +317,12 @@ export default function ReportFormView({
           setSubmitMessage(
             `El formulario público solo está disponible los primeros ${formOpenDays} días del mes.`
           );
+          return;
+        }
+
+        if (response.status === 429) {
+          setSubmitStatus("error");
+          setSubmitMessage("Demasiados envíos desde esta red. Inténtelo más tarde.");
           return;
         }
 

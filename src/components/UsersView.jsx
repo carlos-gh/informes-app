@@ -57,16 +57,8 @@ export default function UsersView({ authToken, authUser, onLogout }) {
 
     try {
       const [usersResponse, groupsResponse] = await Promise.all([
-        fetch("/api/users", {
-          headers: {
-            Authorization: `Bearer ${authToken}`,
-          },
-        }),
-        fetch("/api/groups", {
-          headers: {
-            Authorization: `Bearer ${authToken}`,
-          },
-        }),
+        fetch("/api/users"),
+        fetch("/api/groups"),
       ]);
 
       if (usersResponse.status === 401 || groupsResponse.status === 401) {
@@ -192,7 +184,6 @@ export default function UsersView({ authToken, authUser, onLogout }) {
         method: editingId ? "PUT" : "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${authToken}`,
         },
         body: JSON.stringify(payload),
       });

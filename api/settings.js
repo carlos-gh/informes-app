@@ -61,6 +61,6 @@ export default async function handler(req, res) {
 
     res.status(200).json({ ok: true, formOpenDays });
   } catch (error) {
-    res.status(500).json({ error: "Database error", detail: String(error) });
+    res.status(500).json({ error: "Database error" });
   }
 }

@@ -40,5 +40,11 @@ export const getRequestIp = (req) => {
     return forwarded.split(",")[0].trim();
   }
 
+  const socketIp = req?.socket?.remoteAddress;
+
+  if (typeof socketIp === "string" && socketIp.trim().length > 0) {
+    return socketIp.trim();
+  }
+
   return "";
 };

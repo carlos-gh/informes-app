@@ -69,21 +69,27 @@ export default function LoginView({ onLogin }) {
       });
 
       if (!response.ok) {
+        if (response.status === 429) {
+          throw new Error("Demasiados intentos. Inténtelo nuevamente más tarde.");
+        }
+
         throw new Error("Login failed");
       }
 
       const data = await response.json();
 
-      if (!data.token) {
+      if (!data?.user) {
         throw new Error("Missing token");
       }
 
-      onLogin({ token: data.token, user: data.user || null });
+      onLogin({ user: data.user || null });
       setSubmitStatus("success");
       navigate("/admin");
     } catch (error) {
       setSubmitStatus("error");
-      setSubmitMessage("Las credenciales no son válidas.");
+      setSubmitMessage(
+        String(error.message || "Las credenciales no son válidas.")
+      );
       setTurnstileToken("");
       resetCaptcha();
     }

@@ -2,6 +2,7 @@ import crypto from "crypto";
 import { sql } from "./db.js";
 
 const TOKEN_TTL_MS = 1000 * 60 * 60 * 12;
+const AUTH_COOKIE_NAME = "reports_admin_token";
 const PASSWORD_HASH_PREFIX = "pbkdf2_sha256";
 const PASSWORD_ITERATIONS = 310000;
 const PASSWORD_KEY_LENGTH = 32;
@@ -21,6 +22,77 @@ const AUTH_ACTIVITY_EVENT_LOGIN_FAILURE = "login_failure";
 
 const getTokenSecret = () => {
   return process.env.ADMIN_TOKEN_SECRET || "";
+};
+
+const shouldUseSecureCookie = (req) => {
+  if (process.env.NODE_ENV === "production") {
+    return true;
+  }
+
+  const forwardedProto = String(req?.headers?.["x-forwarded-proto"] || "")
+    .split(",")[0]
+    .trim()
+    .toLowerCase();
+
+  return forwardedProto === "https";
+};
+
+const appendSetCookie = (res, cookieValue) => {
+  const previous = res.getHeader("Set-Cookie");
+
+  if (!previous) {
+    res.setHeader("Set-Cookie", cookieValue);
+    return;
+  }
+
+  if (Array.isArray(previous)) {
+    res.setHeader("Set-Cookie", [...previous, cookieValue]);
+    return;
+  }
+
+  res.setHeader("Set-Cookie", [previous, cookieValue]);
+};
+
+const buildAuthCookieValue = ({
+  token = "",
+  maxAgeSeconds = 0,
+  secure = false,
+}) => {
+  const expiresAt = new Date(Date.now() + Math.max(0, maxAgeSeconds) * 1000);
+  const encodedToken = encodeURIComponent(String(token || ""));
+  const secureFlag = secure ? "; Secure" : "";
+
+  return `${AUTH_COOKIE_NAME}=${encodedToken}; Path=/; HttpOnly; SameSite=Strict${secureFlag}; Max-Age=${Math.max(
+    0,
+    maxAgeSeconds
+  )}; Expires=${expiresAt.toUTCString()}`;
+};
+
+const getCookieValue = (cookieHeader, key) => {
+  if (!cookieHeader || !key) {
+    return "";
+  }
+
+  const cookieParts = String(cookieHeader).split(";");
+
+  for (const part of cookieParts) {
+    const [rawName = "", ...rawValueParts] = part.split("=");
+    const name = rawName.trim();
+
+    if (name !== key) {
+      continue;
+    }
+
+    const rawValue = rawValueParts.join("=");
+
+    try {
+      return decodeURIComponent(rawValue.trim());
+    } catch (error) {
+      return rawValue.trim();
+    }
+  }
+
+  return "";
 };
 
 const normalizeUsername = (value) => {
@@ -408,6 +480,27 @@ export const createToken = (authUser) => {
   };
 };
 
+export const setAuthTokenCookie = (req, res, token) => {
+  const maxAgeSeconds = Math.floor(TOKEN_TTL_MS / 1000);
+  const cookieValue = buildAuthCookieValue({
+    token,
+    maxAgeSeconds,
+    secure: shouldUseSecureCookie(req),
+  });
+
+  appendSetCookie(res, cookieValue);
+};
+
+export const clearAuthTokenCookie = (req, res) => {
+  const cookieValue = buildAuthCookieValue({
+    token: "",
+    maxAgeSeconds: 0,
+    secure: shouldUseSecureCookie(req),
+  });
+
+  appendSetCookie(res, cookieValue);
+};
+
 export const verifyToken = (token) => {
   if (!token) {
     return { valid: false };
@@ -464,7 +557,7 @@ export const verifyToken = (token) => {
 export const getTokenFromRequest = (req) => {
   const header = req.headers.authorization || "";
   if (!header.startsWith("Bearer ")) {
-    return "";
+    return getCookieValue(req.headers.cookie || "", AUTH_COOKIE_NAME);
   }
 
   return header.slice("Bearer ".length).trim();

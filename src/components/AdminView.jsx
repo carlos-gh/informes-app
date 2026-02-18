@@ -579,11 +579,7 @@ export default function AdminView({ authToken, authUser, onLogout }) {
     setLoadError("");
 
     try {
-      const response = await fetch("/api/reports", {
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-        },
-      });
+      const response = await fetch("/api/reports");
 
       if (response.status === 401) {
         onLogout();
@@ -613,11 +609,7 @@ export default function AdminView({ authToken, authUser, onLogout }) {
     setPendingError("");
 
     try {
-      const response = await fetch("/api/people", {
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-        },
-      });
+      const response = await fetch("/api/people");
 
       if (response.status === 401) {
         onLogout();
@@ -643,11 +635,7 @@ export default function AdminView({ authToken, authUser, onLogout }) {
     }
 
     try {
-      const response = await fetch("/api/groups", {
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-        },
-      });
+      const response = await fetch("/api/groups");
 
       if (response.status === 401) {
         onLogout();
@@ -780,7 +768,6 @@ export default function AdminView({ authToken, authUser, onLogout }) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${authToken}`,
         },
         body: JSON.stringify({
           action: "closePeriod",
@@ -840,7 +827,6 @@ export default function AdminView({ authToken, authUser, onLogout }) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${authToken}`,
         },
         body: JSON.stringify({
           action: "reopenPeriod",
@@ -1189,9 +1175,6 @@ export default function AdminView({ authToken, authUser, onLogout }) {
     try {
       const response = await fetch(`/api/reports?id=${reportId}`, {
         method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-        },
       });
 
       if (response.status === 401) {
@@ -1268,7 +1251,6 @@ export default function AdminView({ authToken, authUser, onLogout }) {
           method: editingId ? "PUT" : "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${authToken}`,
           },
           body: JSON.stringify(payload),
         }

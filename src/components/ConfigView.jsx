@@ -75,6 +75,10 @@ const getActivityDetailLabel = (detail) => {
     return "Error interno de autenticación.";
   }
 
+  if ("rate_limited" === value) {
+    return "Intentos bloqueados temporalmente por exceso de solicitudes.";
+  }
+
   return value || "-";
 };
 
@@ -136,11 +140,7 @@ export default function ConfigView({
     setLoadError("");
 
     try {
-      const response = await fetch("/api/people", {
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-        },
-      });
+      const response = await fetch("/api/people");
 
       if (response.status === 401) {
         onLogout();
@@ -181,16 +181,8 @@ export default function ConfigView({
 
     try {
       const [groupsResponse, usersResponse] = await Promise.all([
-        fetch("/api/groups", {
-          headers: {
-            Authorization: `Bearer ${authToken}`,
-          },
-        }),
-        fetch("/api/users", {
-          headers: {
-            Authorization: `Bearer ${authToken}`,
-          },
-        }),
+        fetch("/api/groups"),
+        fetch("/api/users"),
       ]);
 
       if (groupsResponse.status === 401 || usersResponse.status === 401) {
@@ -231,11 +223,7 @@ export default function ConfigView({
     setActivityLoadError("");
 
     try {
-      const response = await fetch("/api/auth/activity?limit=50", {
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-        },
-      });
+      const response = await fetch("/api/auth/activity?limit=50");
 
       if (response.status === 401) {
         onLogout();
@@ -269,11 +257,7 @@ export default function ConfigView({
     }
 
     try {
-      const response = await fetch("/api/settings", {
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-        },
-      });
+      const response = await fetch("/api/settings");
 
       if (response.status === 401) {
         onLogout();
@@ -331,7 +315,6 @@ export default function ConfigView({
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${authToken}`,
         },
         body: JSON.stringify({
           formOpenDays: parsedFormOpenDays,
@@ -454,9 +437,6 @@ export default function ConfigView({
     try {
       const response = await fetch(`/api/people?id=${personId}`, {
         method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-        },
       });
 
       if (response.status === 401) {
@@ -512,7 +492,6 @@ export default function ConfigView({
           method: editingId ? "PUT" : "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${authToken}`,
           },
           body: JSON.stringify(payload),
         }
@@ -660,7 +639,6 @@ export default function ConfigView({
         method: editingGroupNumber ? "PUT" : "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${authToken}`,
         },
         body: JSON.stringify(payload),
       });

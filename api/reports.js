@@ -5,8 +5,10 @@ import {
   requireAuth,
 } from "./_lib/auth.js";
 import { sql } from "./_lib/db.js";
+import { consumeRateLimit } from "./_lib/rate-limit.js";
 import { readJsonBody } from "./_lib/request.js";
 import { getFormOpenDays } from "./_lib/settings.js";
+import { getRequestIp } from "./_lib/turnstile.js";
 
 export const config = {
   runtime: "nodejs",
@@ -350,7 +352,7 @@ export default async function handler(req, res) {
 
         res.status(200).json({ items: reportsResult.rows, periods: closedPeriods });
       } catch (error) {
-        res.status(500).json({ error: "Database error", detail: String(error) });
+        res.status(500).json({ error: "Database error" });
       }
       return;
     }
@@ -517,6 +519,23 @@ export default async function handler(req, res) {
       }
 
       if (!auth) {
+        const requestIp = getRequestIp(req) || "unknown";
+        const submitRateLimit = consumeRateLimit({
+          key: `reports:public:${requestIp}`,
+          limit: 40,
+          windowMs: 60 * 60 * 1000,
+          blockMs: 60 * 60 * 1000,
+        });
+
+        if (!submitRateLimit.allowed) {
+          res.setHeader(
+            "Retry-After",
+            String(Math.max(1, Math.ceil(submitRateLimit.retryAfterMs / 1000)))
+          );
+          res.status(429).json({ error: "Too many submissions. Try again later." });
+          return;
+        }
+
         const formOpenDays = await getFormOpenDays();
 
         if (!isFormWindowOpen(new Date(), formOpenDays)) {
@@ -736,6 +755,6 @@ export default async function handler(req, res) {
 
     res.status(405).json({ error: "Method not allowed" });
   } catch (error) {
-    res.status(500).json({ error: "Server error", detail: String(error) });
+    res.status(500).json({ error: "Server error" });
   }
 }

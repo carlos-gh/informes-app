@@ -37,22 +37,16 @@ const parseResponsibleUserId = (value) => {
 };
 
 const getAuthContext = async (req) => {
-  const hasAuthHeader = Boolean(req.headers.authorization);
-
-  if (!hasAuthHeader) {
-    return null;
-  }
-
   const auth = requireAuth(req);
 
   if (!auth) {
-    return undefined;
+    return null;
   }
 
   const freshAuth = await refreshAuthFromDatabase(auth);
 
   if (!freshAuth) {
-    return undefined;
+    return null;
   }
 
   return freshAuth;
@@ -92,11 +86,6 @@ export default async function handler(req, res) {
 
     if (req.method === "GET") {
       const auth = await getAuthContext(req);
-
-      if (auth === undefined) {
-        res.status(401).json({ error: "Unauthorized" });
-        return;
-      }
 
       const result = await sql`
         SELECT
@@ -314,6 +303,6 @@ export default async function handler(req, res) {
       return;
     }
 
-    res.status(500).json({ error: "Database error", detail: String(error) });
+    res.status(500).json({ error: "Database error" });
   }
 }
