@@ -1429,7 +1429,7 @@ export default function AdminView({ authToken, authUser, onLogout }) {
         </div>
       </div>
 
-      <section className="admin-group-panel">
+      <div className="admin-group-shell">
         <div className="admin-group-tabs" role="tablist" aria-label="Grupos de informes">
           {0 === groupTabs.length ? (
             <button className="admin-group-tab" type="button" disabled>
@@ -1452,7 +1452,8 @@ export default function AdminView({ authToken, authUser, onLogout }) {
           )}
         </div>
 
-        <div key={activeGroupViewKey} className="admin-group-content">
+        <section className="admin-group-panel">
+          <div key={activeGroupViewKey} className="admin-group-content">
         {!isDetailView ? (
           <>
             <section className="closed-periods">
@@ -1609,8 +1610,9 @@ export default function AdminView({ authToken, authUser, onLogout }) {
             />
           </div>
         ) : null}
-        </div>
-      </section>
+          </div>
+        </section>
+      </div>
 
       {isModalOpen ? (
         <div className="modal-overlay" role="dialog" aria-modal="true">
