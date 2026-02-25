@@ -1406,7 +1406,7 @@ input:disabled {
   gap: 8px;
   overflow-x: auto;
   padding: 0 2px;
-  margin-bottom: 10px;
+  margin-bottom: -1px;
   scrollbar-width: thin;
 }
 
@@ -1416,7 +1416,7 @@ input:disabled {
   min-height: 40px;
   margin: 0;
   border: 1px solid rgba(99, 102, 241, 0.28);
-  border-radius: 12px;
+  border-radius: 12px 12px 0 0;
   background: linear-gradient(135deg, rgba(30, 41, 59, 0.82), rgba(15, 23, 42, 0.9));
   color: #e2e8f0;
   font-size: 0.86rem;
@@ -1442,7 +1442,7 @@ input:disabled {
 }
 
 .admin-group-tab:hover {
-  transform: translateY(-1px);
+  transform: none;
   border-color: rgba(99, 102, 241, 0.45);
 }
 
@@ -1453,9 +1453,11 @@ input:disabled {
 .admin-group-tab.active {
   border-color: rgba(99, 102, 241, 0.68);
   background: linear-gradient(135deg, rgba(99, 102, 241, 0.34), rgba(79, 70, 229, 0.44));
-  box-shadow: 0 8px 18px rgba(79, 70, 229, 0.22);
+  box-shadow: none;
+  margin-bottom: -1px;
+  border-bottom-color: transparent;
   transform: none;
-  z-index: 1;
+  z-index: 2;
 }
 
 .admin-group-tab.active::before {
@@ -1482,7 +1484,7 @@ input:disabled {
 
 .admin-group-content {
   animation: admin-group-content-enter 0.24s ease-out;
-  border-radius: 14px;
+  border-radius: 0 0 14px 14px;
   border: 1px solid rgba(148, 163, 184, 0.25);
   background: rgba(148, 163, 184, 0.08);
   padding: 16px;
