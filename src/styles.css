@@ -1388,14 +1388,14 @@ input:disabled {
   max-width: 320px;
 }
 
-.admin-group-tabs-section {
+.admin-group-panel {
   display: flex;
   flex-direction: column;
   gap: 12px;
-}
-
-.admin-group-tabs-header .config-section-description {
-  margin-bottom: 0;
+  padding: 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  background: rgba(148, 163, 184, 0.08);
 }
 
 .admin-group-tabs {
@@ -1458,6 +1458,14 @@ input:disabled {
 
 .admin-group-content {
   animation: admin-group-content-enter 0.24s ease-out;
+}
+
+.admin-group-content .closed-periods {
+  margin-bottom: 12px;
+}
+
+.admin-group-content .closed-periods:last-child {
+  margin-bottom: 0;
 }
 
 @keyframes admin-group-content-enter {
@@ -1764,6 +1772,7 @@ input:disabled {
 :root[data-theme="light"] .table-wrapper,
 :root[data-theme="light"] .config-theme,
 :root[data-theme="light"] .config-people,
+:root[data-theme="light"] .admin-group-panel,
 :root[data-theme="light"] .closed-periods {
   background: rgba(148, 163, 184, 0.1);
   border-color: rgba(148, 163, 184, 0.4);

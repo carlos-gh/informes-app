@@ -1429,15 +1429,7 @@ export default function AdminView({ authToken, authUser, onLogout }) {
         </div>
       </div>
 
-      <section className="config-theme admin-group-tabs-section">
-        <div className="admin-group-tabs-header">
-          <h2 className="config-section-title">Grupos</h2>
-          <p className="config-section-description">
-            {isSuperAdmin
-              ? "Seleccione el grupo que desea administrar."
-              : "Este panel muestra únicamente su grupo asignado."}
-          </p>
-        </div>
+      <section className="admin-group-panel">
         <div className="admin-group-tabs" role="tablist" aria-label="Grupos de informes">
           {0 === groupTabs.length ? (
             <button className="admin-group-tab" type="button" disabled>
@@ -1459,9 +1451,8 @@ export default function AdminView({ authToken, authUser, onLogout }) {
             ))
           )}
         </div>
-      </section>
 
-      <div key={activeGroupViewKey} className="admin-group-content">
+        <div key={activeGroupViewKey} className="admin-group-content">
         {!isDetailView ? (
           <>
             <section className="closed-periods">
@@ -1618,7 +1609,8 @@ export default function AdminView({ authToken, authUser, onLogout }) {
             />
           </div>
         ) : null}
-      </div>
+        </div>
+      </section>
 
       {isModalOpen ? (
         <div className="modal-overlay" role="dialog" aria-modal="true">
