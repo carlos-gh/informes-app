@@ -1382,6 +1382,45 @@ input:disabled {
   max-width: 320px;
 }
 
+.admin-group-tabs-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.admin-group-tabs-header .config-section-description {
+  margin-bottom: 0;
+}
+
+.admin-group-tabs {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.admin-group-tab {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  background: rgba(15, 23, 42, 0.3);
+  color: #e2e8f0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.admin-group-tab.active {
+  border-color: rgba(99, 102, 241, 0.6);
+  background: rgba(99, 102, 241, 0.2);
+}
+
+.admin-group-tab:disabled {
+  cursor: default;
+  opacity: 0.95;
+}
+
 .config-section-actions {
   display: flex;
   flex-wrap: wrap;
@@ -1696,6 +1735,17 @@ input:disabled {
 
 :root[data-theme="light"] .table-button {
   color: #1e293b;
+}
+
+:root[data-theme="light"] .admin-group-tab {
+  color: #1e293b;
+  border-color: rgba(148, 163, 184, 0.45);
+  background: #ffffff;
+}
+
+:root[data-theme="light"] .admin-group-tab.active {
+  border-color: rgba(99, 102, 241, 0.45);
+  background: rgba(99, 102, 241, 0.12);
 }
 
 :root[data-theme="light"] .pagination-info,

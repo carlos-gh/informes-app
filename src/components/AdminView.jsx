@@ -267,6 +267,58 @@ export default function AdminView({ authToken, authUser, onLogout }) {
 
     return matchedGroup?.name || `Grupo ${activeGroupNumber}`;
   }, [activeGroupIsUngrouped, activeGroupNumber, groups]);
+  const groupTabs = useMemo(() => {
+    if (isSuperAdmin) {
+      const tabs = availableGroupNumbers.map((groupNumber) => {
+        const matchedGroup = groups.find(
+          (group) => Number(group.groupNumber) === Number(groupNumber)
+        );
+        const groupName = matchedGroup?.name || `Grupo ${groupNumber}`;
+
+        return {
+          key: `group-${groupNumber}`,
+          value: String(groupNumber),
+          label: `${groupName} (Grupo ${groupNumber})`,
+          isActive: Number(activeGroupNumber) === Number(groupNumber) && !activeGroupIsUngrouped,
+          isDisabled: false,
+        };
+      });
+
+      if (hasUngroupedReports) {
+        tabs.unshift({
+          key: "group-ungrouped",
+          value: "ungrouped",
+          label: "Sin grupo",
+          isActive: activeGroupIsUngrouped,
+          isDisabled: false,
+        });
+      }
+
+      return tabs;
+    }
+
+    if (activeGroupNumber !== null) {
+      return [
+        {
+          key: `group-${activeGroupNumber}`,
+          value: String(activeGroupNumber),
+          label: `${activeGroupLabel} (Grupo ${activeGroupNumber})`,
+          isActive: true,
+          isDisabled: true,
+        },
+      ];
+    }
+
+    return [];
+  }, [
+    activeGroupIsUngrouped,
+    activeGroupLabel,
+    activeGroupNumber,
+    availableGroupNumbers,
+    groups,
+    hasUngroupedReports,
+    isSuperAdmin,
+  ]);
 
   const reportsForActiveGroup = useMemo(() => {
     if (activeGroupIsUngrouped) {
@@ -784,6 +836,14 @@ export default function AdminView({ authToken, authUser, onLogout }) {
 
   const handleBackToOverview = () => {
     navigate("/admin");
+  };
+
+  const handleGroupTabSelect = (value) => {
+    if (!isSuperAdmin) {
+      return;
+    }
+
+    setSelectedGroupNumber(String(value || ""));
   };
 
   const handleClosePeriod = async () => {
@@ -1358,44 +1418,37 @@ export default function AdminView({ authToken, authUser, onLogout }) {
         </div>
       </div>
 
-      {isSuperAdmin ? (
-        <section className="config-theme">
-          <div className="field">
-            <label htmlFor="admin-group-context">Grupo visible</label>
-            <select
-              id="admin-group-context"
-              name="admin-group-context"
-              value={
-                activeGroupIsUngrouped
-                  ? "ungrouped"
-                  : activeGroupNumber !== null
-                  ? String(activeGroupNumber)
-                  : ""
-              }
-              onChange={(event) => setSelectedGroupNumber(event.target.value)}
-            >
-              {availableGroupNumbers.length === 0 && !hasUngroupedReports ? (
-                <option value="">Sin grupos disponibles</option>
-              ) : null}
-              {hasUngroupedReports ? (
-                <option value="ungrouped">Sin grupo</option>
-              ) : null}
-              {availableGroupNumbers.map((groupNumber) => {
-                const matchedGroup = groups.find(
-                  (group) => Number(group.groupNumber) === Number(groupNumber)
-                );
-                const groupName = matchedGroup?.name || `Grupo ${groupNumber}`;
-
-                return (
-                  <option key={groupNumber} value={groupNumber}>
-                    {groupName} (Grupo {groupNumber})
-                  </option>
-                );
-              })}
-            </select>
-          </div>
-        </section>
-      ) : null}
+      <section className="config-theme admin-group-tabs-section">
+        <div className="admin-group-tabs-header">
+          <h2 className="config-section-title">Grupos</h2>
+          <p className="config-section-description">
+            {isSuperAdmin
+              ? "Seleccione el grupo que desea administrar."
+              : "Este panel muestra únicamente su grupo asignado."}
+          </p>
+        </div>
+        <div className="admin-group-tabs" role="tablist" aria-label="Grupos de informes">
+          {0 === groupTabs.length ? (
+            <button className="admin-group-tab" type="button" disabled>
+              Sin grupos disponibles
+            </button>
+          ) : (
+            groupTabs.map((tab) => (
+              <button
+                key={tab.key}
+                className={`admin-group-tab ${tab.isActive ? "active" : ""}`}
+                type="button"
+                role="tab"
+                aria-selected={tab.isActive}
+                onClick={() => handleGroupTabSelect(tab.value)}
+                disabled={tab.isDisabled}
+              >
+                {tab.label}
+              </button>
+            ))
+          )}
+        </div>
+      </section>
 
       {!isDetailView ? (
         <>
