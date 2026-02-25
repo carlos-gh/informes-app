@@ -1403,10 +1403,10 @@ input:disabled {
 .admin-group-tabs {
   display: flex;
   align-items: flex-end;
-  gap: 0;
+  gap: 8px;
   overflow-x: auto;
   padding: 0 2px;
-  margin-bottom: -1px;
+  margin-bottom: 10px;
   scrollbar-width: thin;
 }
 
@@ -1414,11 +1414,9 @@ input:disabled {
   position: relative;
   padding: 10px 18px 10px 14px;
   min-height: 40px;
-  margin: 0 12px 1px 0;
+  margin: 0;
   border: 1px solid rgba(99, 102, 241, 0.28);
-  border-bottom: none;
-  border-right: none;
-  border-radius: 10px 0 0 0;
+  border-radius: 12px;
   background: linear-gradient(135deg, rgba(30, 41, 59, 0.82), rgba(15, 23, 42, 0.9));
   color: #e2e8f0;
   font-size: 0.86rem;
@@ -1440,17 +1438,7 @@ input:disabled {
 }
 
 .admin-group-tab::after {
-  content: "";
-  position: absolute;
-  top: -1px;
-  right: -12px;
-  width: 12px;
-  height: 100%;
-  background: inherit;
-  border-top: 1px solid rgba(99, 102, 241, 0.28);
-  border-right: 1px solid rgba(99, 102, 241, 0.28);
-  transform: skewX(26deg);
-  transform-origin: top right;
+  content: none;
 }
 
 .admin-group-tab:hover {
@@ -1459,17 +1447,15 @@ input:disabled {
 }
 
 .admin-group-tab:hover::after {
-  border-top-color: rgba(99, 102, 241, 0.45);
-  border-right-color: rgba(99, 102, 241, 0.45);
+  content: none;
 }
 
 .admin-group-tab.active {
   border-color: rgba(99, 102, 241, 0.68);
   background: linear-gradient(135deg, rgba(99, 102, 241, 0.34), rgba(79, 70, 229, 0.44));
   box-shadow: 0 8px 18px rgba(79, 70, 229, 0.22);
-  margin-bottom: 0;
   transform: none;
-  z-index: 3;
+  z-index: 1;
 }
 
 .admin-group-tab.active::before {
@@ -1477,9 +1463,7 @@ input:disabled {
 }
 
 .admin-group-tab.active::after {
-  border-top-color: rgba(99, 102, 241, 0.68);
-  border-right-color: rgba(99, 102, 241, 0.68);
-  border-bottom: none;
+  content: none;
 }
 
 .admin-group-tab:focus-visible {
@@ -1847,8 +1831,7 @@ input:disabled {
 }
 
 :root[data-theme="light"] .admin-group-tab::after {
-  border-top-color: rgba(99, 102, 241, 0.34);
-  border-right-color: rgba(99, 102, 241, 0.34);
+  content: none;
 }
 
 :root[data-theme="light"] .admin-group-tab.active {
@@ -1861,9 +1844,7 @@ input:disabled {
 }
 
 :root[data-theme="light"] .admin-group-tab.active::after {
-  border-top-color: rgba(99, 102, 241, 0.45);
-  border-right-color: rgba(99, 102, 241, 0.45);
-  border-bottom: none;
+  content: none;
 }
 
 :root[data-theme="light"] .pagination-info,
