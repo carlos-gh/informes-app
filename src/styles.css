@@ -235,7 +235,7 @@ body {
 .page-main {
   flex: 1;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   padding: 32px 16px;
 }
@@ -1404,10 +1404,8 @@ input:disabled {
   display: flex;
   align-items: flex-end;
   gap: 0;
-  padding: 0 2px;
+  padding: 0;
   margin-bottom: -1px;
-  overflow-x: auto;
-  scrollbar-width: thin;
 }
 
 .admin-group-tab {
@@ -1416,7 +1414,7 @@ input:disabled {
   min-height: 42px;
   margin: 0 -1px 0 0;
   border: 1px solid rgba(148, 163, 184, 0.3);
-  border-radius: 12px 12px 0 0;
+  border-radius: 0;
   background: rgba(15, 23, 42, 0.62);
   color: #cbd5e1;
   font-size: 0.86rem;
@@ -1454,6 +1452,18 @@ input:disabled {
 .admin-group-tab.active:hover {
   border-color: rgba(148, 163, 184, 0.25);
   background: rgba(148, 163, 184, 0.08);
+}
+
+.admin-group-tab{
+  content: "";
+  position: absolute;
+  left: -1px;
+  right: -1px;
+  top: -1px;
+  height: 3px;
+  border-radius: 12px 12px 0 0;
+  background: transparent;
+  pointer-events: none;
 }
 
 .admin-group-tab.active::before {
@@ -1495,7 +1505,7 @@ input:disabled {
 
 .admin-group-content {
   animation: admin-group-content-enter 0.24s ease-out;
-  border-radius: 0 0 14px 14px;
+  border-radius: 14px 0 0 0;
   border: 1px solid rgba(148, 163, 184, 0.25);
   background: rgba(148, 163, 184, 0.08);
   padding: 16px;
