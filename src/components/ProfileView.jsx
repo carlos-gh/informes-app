@@ -32,7 +32,7 @@ export default function ProfileView({
   onLogout,
   authUser = null,
   onProfileUserUpdate = () => {},
-  theme = "dark",
+  theme = "light",
   onThemeChange = () => {},
 }) {
   const isAuthenticated = Boolean(authToken);
@@ -50,6 +50,7 @@ export default function ProfileView({
   const [formError, setFormError] = useState("");
   const [submitStatus, setSubmitStatus] = useState("idle");
   const [submitMessage, setSubmitMessage] = useState("");
+  const [themeSubmitStatus, setThemeSubmitStatus] = useState("idle");
   const [themeSubmitMessage, setThemeSubmitMessage] = useState("");
 
   useEffect(() => {
@@ -197,15 +198,48 @@ export default function ProfileView({
     }
   };
 
-  const handleThemeSelect = (event) => {
+  const handleThemeSelect = async (event) => {
     const value = String(event.target.value || "");
 
     if (value !== "dark" && value !== "light") {
       return;
     }
 
-    onThemeChange(value);
-    setThemeSubmitMessage("Tema actualizado correctamente.");
+    setThemeSubmitStatus("loading");
+    setThemeSubmitMessage("");
+
+    try {
+      const response = await fetch("/api/auth/me", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          theme: value,
+        }),
+      });
+
+      if (response.status === 401) {
+        onLogout();
+        setThemeSubmitStatus("error");
+        setThemeSubmitMessage("Su sesión expiró. Inicie sesión de nuevo.");
+        return;
+      }
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(String(data?.error || "No se pudo actualizar el tema."));
+      }
+
+      const data = await response.json();
+      onProfileUserUpdate(data?.user || null);
+      onThemeChange(value);
+      setThemeSubmitStatus("success");
+      setThemeSubmitMessage("Tema actualizado correctamente.");
+    } catch (error) {
+      setThemeSubmitStatus("error");
+      setThemeSubmitMessage(String(error.message || "No se pudo actualizar el tema."));
+    }
   };
 
   if (!isAuthenticated) {
@@ -284,20 +318,23 @@ export default function ProfileView({
         </p>
 
         <div className="field">
-          <label htmlFor="profile-theme">Tema predeterminado</label>
+          <label htmlFor="profile-theme">Tema personal</label>
           <select
             id="profile-theme"
             name="profile-theme"
             value={theme}
             onChange={handleThemeSelect}
           >
-            <option value="dark">Oscuro (predeterminado)</option>
             <option value="light">Claro</option>
+            <option value="dark">Oscuro</option>
           </select>
         </div>
 
         {themeSubmitMessage ? (
-          <div className="feedback success" role="status">
+          <div
+            className={`feedback ${themeSubmitStatus === "error" ? "error" : "success"}`}
+            role="status"
+          >
             {themeSubmitMessage}
           </div>
         ) : null}

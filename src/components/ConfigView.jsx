@@ -156,6 +156,7 @@ export default function ConfigView({
   authToken,
   authUser,
   onLogout,
+  onPublicThemeChange = () => {},
 }) {
   const [people, setPeople] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -181,6 +182,7 @@ export default function ConfigView({
   const [isActivityLoading, setIsActivityLoading] = useState(false);
   const [activityLoadError, setActivityLoadError] = useState("");
   const [formOpenDays, setFormOpenDays] = useState(10);
+  const [publicTheme, setPublicTheme] = useState("light");
   const [settingsSubmitStatus, setSettingsSubmitStatus] = useState("idle");
   const [settingsSubmitMessage, setSettingsSubmitMessage] = useState("");
   const [activityPage, setActivityPage] = useState(1);
@@ -198,6 +200,10 @@ export default function ConfigView({
   const isSuperAdmin = true === Boolean(authUser?.isSuperAdmin);
   const managedGroupNumber = authUser?.groupNumber ? String(authUser.groupNumber) : "";
   const canManagePeople = isSuperAdmin || Boolean(managedGroupNumber);
+  const normalizeTheme = (value) => {
+    const normalized = String(value || "").trim().toLowerCase();
+    return normalized === "dark" || normalized === "light" ? normalized : "";
+  };
 
   const loadPeople = async () => {
     if (!isAuthenticated || !canManagePeople) {
@@ -331,6 +337,7 @@ export default function ConfigView({
   const loadSettings = async () => {
     if (!isAuthenticated || !isSuperAdmin) {
       setFormOpenDays(10);
+      setPublicTheme("light");
       return;
     }
 
@@ -348,6 +355,7 @@ export default function ConfigView({
 
       const data = await response.json();
       const parsedFormOpenDays = Number(data?.formOpenDays);
+      const parsedPublicTheme = normalizeTheme(data?.publicTheme);
 
       if (
         Number.isInteger(parsedFormOpenDays) &&
@@ -355,11 +363,14 @@ export default function ConfigView({
         parsedFormOpenDays <= 31
       ) {
         setFormOpenDays(parsedFormOpenDays);
-        return;
+      }
+
+      if (parsedPublicTheme) {
+        setPublicTheme(parsedPublicTheme);
       }
     } catch (error) {
       setSettingsSubmitStatus("error");
-      setSettingsSubmitMessage("No se pudieron cargar los parámetros del formulario.");
+      setSettingsSubmitMessage("No se pudieron cargar los parámetros generales.");
     }
   };
 
@@ -386,6 +397,14 @@ export default function ConfigView({
       return;
     }
 
+    const parsedPublicTheme = normalizeTheme(publicTheme);
+
+    if (!parsedPublicTheme) {
+      setSettingsSubmitStatus("error");
+      setSettingsSubmitMessage("Seleccione un tema público válido.");
+      return;
+    }
+
     setSettingsSubmitStatus("loading");
 
     try {
@@ -396,6 +415,7 @@ export default function ConfigView({
         },
         body: JSON.stringify({
           formOpenDays: parsedFormOpenDays,
+          publicTheme: parsedPublicTheme,
         }),
       });
 
@@ -416,9 +436,15 @@ export default function ConfigView({
 
       const data = await response.json();
       const savedValue = Number(data?.formOpenDays);
+      const savedPublicTheme = normalizeTheme(data?.publicTheme);
 
       if (Number.isInteger(savedValue) && savedValue >= 1 && savedValue <= 31) {
         setFormOpenDays(savedValue);
+      }
+
+      if (savedPublicTheme) {
+        setPublicTheme(savedPublicTheme);
+        onPublicThemeChange(savedPublicTheme);
       }
 
       setSettingsSubmitStatus("success");
@@ -937,7 +963,7 @@ export default function ConfigView({
         <section className="config-theme">
           <h2 className="config-section-title">Recopilación de informes</h2>
           <p className="config-section-description">
-            Defina cuántos días estará abierto el formulario público cada mes.
+            Defina cuántos días estará abierto el formulario y el tema público del sitio.
           </p>
 
           <form className="form" onSubmit={handleFormOpenDaysSubmit} noValidate>
@@ -956,6 +982,22 @@ export default function ConfigView({
                 onChange={(event) => setFormOpenDays(event.target.value)}
                 required
               />
+            </div>
+
+            <div className="field">
+              <label htmlFor="config-public-theme">
+                Tema público del sitio <span className="required">*</span>
+              </label>
+              <select
+                id="config-public-theme"
+                name="config-public-theme"
+                value={publicTheme}
+                onChange={(event) => setPublicTheme(event.target.value)}
+                required
+              >
+                <option value="light">Claro</option>
+                <option value="dark">Oscuro</option>
+              </select>
             </div>
 
             <div className="form-actions">

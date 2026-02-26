@@ -4,7 +4,12 @@ import {
   requireAuth,
 } from "./_lib/auth.js";
 import { readJsonBody } from "./_lib/request.js";
-import { getFormOpenDays, setFormOpenDays } from "./_lib/settings.js";
+import {
+  getFormOpenDays,
+  getPublicTheme as readPublicTheme,
+  setFormOpenDays,
+  setPublicTheme,
+} from "./_lib/settings.js";
 
 export const config = {
   runtime: "nodejs",
@@ -24,7 +29,8 @@ export default async function handler(req, res) {
   try {
     if (req.method === "GET") {
       const formOpenDays = await getFormOpenDays();
-      res.status(200).json({ formOpenDays });
+      const publicTheme = await readPublicTheme();
+      res.status(200).json({ formOpenDays, publicTheme });
       return;
     }
 
@@ -51,15 +57,32 @@ export default async function handler(req, res) {
       res.status(400).json({ error: "Invalid payload" });
       return;
     }
+    const hasFormOpenDays = Object.prototype.hasOwnProperty.call(body, "formOpenDays");
+    const hasPublicTheme = Object.prototype.hasOwnProperty.call(body, "publicTheme");
 
-    const formOpenDays = await setFormOpenDays(body.formOpenDays);
+    if (!hasFormOpenDays && !hasPublicTheme) {
+      res.status(400).json({ error: "Invalid payload" });
+      return;
+    }
+
+    const formOpenDays = hasFormOpenDays
+      ? await setFormOpenDays(body.formOpenDays)
+      : await getFormOpenDays();
+    const publicTheme = hasPublicTheme
+      ? await setPublicTheme(body.publicTheme)
+      : await readPublicTheme();
 
     if (formOpenDays === null) {
       res.status(400).json({ error: "Invalid form open days" });
       return;
     }
 
-    res.status(200).json({ ok: true, formOpenDays });
+    if (publicTheme === null) {
+      res.status(400).json({ error: "Invalid public theme" });
+      return;
+    }
+
+    res.status(200).json({ ok: true, formOpenDays, publicTheme });
   } catch (error) {
     res.status(500).json({ error: "Database error" });
   }

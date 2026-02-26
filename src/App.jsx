@@ -11,7 +11,6 @@ import ProfileView from "./components/ProfileView.jsx";
 import ReportFormView from "./components/ReportFormView.jsx";
 import UsersView from "./components/UsersView.jsx";
 import { getReportingLabelFromKey } from "./utils/reporting.js";
-import { getStoredTheme, storeTheme } from "./utils/themeStorage.js";
 
 function GroupSlugRoute({ isAuthenticated, authUser, authToken }) {
   const { groupSlug = "" } = useParams();
@@ -35,6 +34,7 @@ export default function App() {
   const [authToken, setAuthToken] = useState("");
   const [authUser, setAuthUser] = useState(null);
   const [theme, setTheme] = useState("light");
+  const [publicTheme, setPublicTheme] = useState("light");
   const location = useLocation();
   const isAdminRoute = location.pathname.startsWith("/admin");
   const isConfigRoute = location.pathname.startsWith("/config");
@@ -45,10 +45,10 @@ export default function App() {
   const isGroupFormRoute = /^\/grupo-\d+\/?$/.test(location.pathname);
   const shouldCenterMainContent = isLoginRoute || isGroupSelectorRoute || isGroupFormRoute;
   const isAuthenticated = Boolean(authToken);
-
-  useEffect(() => {
-    setTheme(getStoredTheme());
-  }, []);
+  const getValidTheme = (value) => {
+    const normalized = String(value || "").trim().toLowerCase();
+    return normalized === "dark" || normalized === "light" ? normalized : "";
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -81,6 +81,43 @@ export default function App() {
       isMounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadPublicTheme = async () => {
+      try {
+        const response = await fetch("/api/settings");
+
+        if (!response.ok) {
+          throw new Error("Failed to load settings");
+        }
+
+        const data = await response.json();
+        const nextPublicTheme = getValidTheme(data?.publicTheme) || "light";
+
+        if (isMounted) {
+          setPublicTheme(nextPublicTheme);
+        }
+      } catch (error) {
+        if (isMounted) {
+          setPublicTheme("light");
+        }
+      }
+    };
+
+    loadPublicTheme();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const userTheme = getValidTheme(authUser?.theme);
+    const nextTheme = userTheme || publicTheme || "light";
+    setTheme(nextTheme);
+  }, [authUser?.theme, publicTheme]);
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
@@ -166,8 +203,15 @@ export default function App() {
       return;
     }
 
+    setAuthUser((previous) =>
+      previous
+        ? {
+            ...previous,
+            theme: nextTheme,
+          }
+        : previous
+    );
     setTheme(nextTheme);
-    storeTheme(nextTheme);
   };
 
   return (
@@ -234,6 +278,7 @@ export default function App() {
                   authToken={authToken}
                   authUser={authUser}
                   onLogout={handleLogout}
+                  onPublicThemeChange={setPublicTheme}
                 />
               }
             />

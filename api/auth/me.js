@@ -4,6 +4,7 @@ import {
   refreshAuthFromDatabase,
   requireAuth,
   validateFullNameInput,
+  validateThemeInput,
 } from "../_lib/auth.js";
 import { sql } from "../_lib/db.js";
 import { readJsonBody } from "../_lib/request.js";
@@ -44,18 +45,36 @@ export default async function handler(req, res) {
     return;
   }
 
-  const fullName = validateFullNameInput(body.fullName);
+  const hasFullName = Object.prototype.hasOwnProperty.call(body, "fullName");
+  const hasTheme = Object.prototype.hasOwnProperty.call(body, "theme");
 
-  if (!fullName) {
+  if (!hasFullName && !hasTheme) {
+    res.status(400).json({ error: "Invalid payload" });
+    return;
+  }
+
+  const fullName = hasFullName ? validateFullNameInput(body.fullName) : "";
+  const theme = hasTheme ? validateThemeInput(body.theme) : "";
+
+  if (hasFullName && !fullName) {
     res.status(400).json({ error: "Invalid full name" });
     return;
   }
+
+  if (hasTheme && !theme) {
+    res.status(400).json({ error: "Invalid theme" });
+    return;
+  }
+
+  const nextFullName = hasFullName ? fullName : null;
+  const nextTheme = hasTheme ? theme : null;
 
   await ensureIdentitySchema();
   await sql`
     UPDATE users
     SET
-      full_name = ${fullName},
+      full_name = COALESCE(${nextFullName}, full_name),
+      theme = COALESCE(${nextTheme}, theme),
       updated_at = NOW()
     WHERE id = ${freshAuth.userId};
   `;
