@@ -1454,7 +1454,7 @@ input:disabled {
   background: rgba(148, 163, 184, 0.08);
 }
 
-.admin-group-tab{
+.admin-group-tab::before {
   content: "";
   position: absolute;
   left: -1px;
