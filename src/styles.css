@@ -1429,8 +1429,13 @@ input:disabled {
     color 0.22s ease;
 }
 
+.admin-group-tab:first-child {
+  border-radius: 10px 0 0 0;
+}
+
 .admin-group-tab:last-child {
   margin-right: 0;
+  border-radius: 0 10px 0 0;
 }
 
 .admin-group-tab:hover {
@@ -1443,7 +1448,6 @@ input:disabled {
   background: rgba(148, 163, 184, 0.08);
   color: #f8fafc;
   box-shadow: none;
-  margin-bottom: -1px;
   border-bottom-color: transparent;
   transform: none;
   z-index: 2;
