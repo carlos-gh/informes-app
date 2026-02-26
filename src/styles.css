@@ -1427,6 +1427,7 @@ input:disabled {
     border-color 0.22s ease,
     background 0.22s ease,
     color 0.22s ease;
+  opacity: 0.5;
 }
 
 .admin-group-tab:first-child {
@@ -1451,35 +1452,12 @@ input:disabled {
   border-bottom-color: transparent;
   transform: none;
   z-index: 2;
+  opacity: 1;
 }
 
 .admin-group-tab.active:hover {
   border-color: rgba(148, 163, 184, 0.25);
   background: rgba(148, 163, 184, 0.08);
-}
-
-.admin-group-tab::before {
-  content: "";
-  position: absolute;
-  left: -1px;
-  right: -1px;
-  top: -1px;
-  height: 3px;
-  border-radius: 12px 12px 0 0;
-  background: transparent;
-  pointer-events: none;
-}
-
-.admin-group-tab.active::before {
-  content: "";
-  position: absolute;
-  left: -1px;
-  right: -1px;
-  top: -1px;
-  height: 3px;
-  border-radius: 12px 12px 0 0;
-  background: #38bdf8;
-  pointer-events: none;
 }
 
 .admin-group-tab:focus-visible {
