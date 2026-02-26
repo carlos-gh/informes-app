@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { NavLink } from "react-router-dom";
 
 const GreetingPeriodIcon = ({ period }) => {
   if (period === "morning") {
@@ -91,6 +91,8 @@ export default function PageHeader({
   const closeMenu = () => {
     setIsMenuOpen(false);
   };
+  const getHeaderLinkClassName = ({ isActive }) =>
+    `header-item header-link${isActive ? " header-link-active" : ""}`;
 
   return (
     <header className="page-header">
@@ -121,23 +123,39 @@ export default function PageHeader({
         >
           {isAuthenticated ? (
             <>
-              <Link className="header-item header-link" to="/" onClick={closeMenu}>
+              <NavLink className={getHeaderLinkClassName} to="/" end onClick={closeMenu}>
                 Inicio
-              </Link>
-              <Link className="header-item header-link" to="/admin" onClick={closeMenu}>
+              </NavLink>
+              <NavLink
+                className={getHeaderLinkClassName}
+                to="/admin"
+                onClick={closeMenu}
+              >
                 Administrar Informes
-              </Link>
-              <Link className="header-item header-link" to="/config" onClick={closeMenu}>
+              </NavLink>
+              <NavLink
+                className={getHeaderLinkClassName}
+                to="/config"
+                onClick={closeMenu}
+              >
                 Configuración
-              </Link>
+              </NavLink>
               {isSuperAdmin ? (
-                <Link className="header-item header-link" to="/users" onClick={closeMenu}>
+                <NavLink
+                  className={getHeaderLinkClassName}
+                  to="/users"
+                  onClick={closeMenu}
+                >
                   Usuarios
-                </Link>
+                </NavLink>
               ) : null}
-              <Link className="header-item header-link" to="/profile" onClick={closeMenu}>
+              <NavLink
+                className={getHeaderLinkClassName}
+                to="/profile"
+                onClick={closeMenu}
+              >
                 Perfil
-              </Link>
+              </NavLink>
               <button
                 className="header-item header-button"
                 type="button"
@@ -155,13 +173,13 @@ export default function PageHeader({
           ) : (
             <>
               {isLoginRoute ? (
-                <Link className="header-item header-link" to="/" onClick={closeMenu}>
+                <NavLink className={getHeaderLinkClassName} to="/" end onClick={closeMenu}>
                   Inicio
-                </Link>
+                </NavLink>
               ) : null}
-              <Link className="header-item header-link" to="/login" onClick={closeMenu}>
+              <NavLink className={getHeaderLinkClassName} to="/login" end onClick={closeMenu}>
                 Acceso
-              </Link>
+              </NavLink>
             </>
           )}
         </nav>
