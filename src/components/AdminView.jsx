@@ -417,6 +417,27 @@ export default function AdminView({ authToken, authUser, onLogout }) {
 
     return people.filter((person) => Number(person.groupNumber) === Number(activeGroupNumber));
   }, [activeGroupIsUngrouped, activeGroupNumber, people]);
+  const getCompletionPercent = (totalReports) => {
+    const totalPeople = peopleForActiveGroup.length;
+
+    if (totalPeople < 1) {
+      return 0;
+    }
+
+    const reportsCount = Number(totalReports) || 0;
+    const rawPercent = (reportsCount / totalPeople) * 100;
+    const normalizedPercent = Math.round(rawPercent);
+
+    if (normalizedPercent < 0) {
+      return 0;
+    }
+
+    if (normalizedPercent > 100) {
+      return 100;
+    }
+
+    return normalizedPercent;
+  };
 
   const reportSummaryByMonth = useMemo(() => {
     const summary = new Map();
@@ -1525,8 +1546,7 @@ export default function AdminView({ authToken, authUser, onLogout }) {
                           <span>{period.reportMonthLabel}</span>
                         </span>
                         <span className="closed-period-meta">
-                          Informes: {period.totalReports} · Horas: {period.totalHours} · Cursos:{" "}
-                          {period.totalCourses}
+                          Completado: {getCompletionPercent(period.totalReports)}%
                         </span>
                         <span className="closed-period-meta">
                           <span className="closed-period-icon status-open" aria-hidden="true">
@@ -1586,8 +1606,7 @@ export default function AdminView({ authToken, authUser, onLogout }) {
                           <span>{period.reportMonthLabel}</span>
                         </span>
                         <span className="closed-period-meta">
-                          Informes: {period.totalReports} · Horas: {period.totalHours} · Cursos:{" "}
-                          {period.totalCourses}
+                          Completado: {getCompletionPercent(period.totalReports)}%
                         </span>
                         <span className="closed-period-meta">
                           <span className="closed-period-icon status-completed" aria-hidden="true">
