@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Route, Routes, useLocation, useParams } from "react-router-dom";
+import { Route, Routes, useLocation, useNavigate, useParams } from "react-router-dom";
 import AdminView from "./components/AdminView.jsx";
 import ConfigView from "./components/ConfigView.jsx";
 import GroupSelectorView from "./components/GroupSelectorView.jsx";
@@ -36,6 +36,7 @@ export default function App() {
   const [theme, setTheme] = useState("light");
   const [publicTheme, setPublicTheme] = useState("light");
   const location = useLocation();
+  const navigate = useNavigate();
   const isAdminRoute = location.pathname.startsWith("/admin");
   const isConfigRoute = location.pathname.startsWith("/config");
   const isUsersRoute = location.pathname.startsWith("/users");
@@ -43,8 +44,12 @@ export default function App() {
   const isLoginRoute = location.pathname === "/login";
   const isGroupSelectorRoute = location.pathname === "/";
   const isGroupFormRoute = /^\/grupo-\d+\/?$/.test(location.pathname);
-  const shouldCenterMainContent = isLoginRoute || isGroupSelectorRoute || isGroupFormRoute;
   const isAuthenticated = Boolean(authToken);
+  const shouldCenterMainContent =
+    isLoginRoute ||
+    isGroupSelectorRoute ||
+    isGroupFormRoute ||
+    (!isAuthenticated && isProfileRoute);
   const getValidTheme = (value) => {
     const normalized = String(value || "").trim().toLowerCase();
     return normalized === "dark" || normalized === "light" ? normalized : "";
@@ -195,6 +200,7 @@ export default function App() {
     } finally {
       setAuthToken("");
       setAuthUser(null);
+      navigate("/", { replace: true });
     }
   };
 
