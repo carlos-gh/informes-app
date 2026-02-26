@@ -41,8 +41,9 @@ export default function App() {
   const isUsersRoute = location.pathname.startsWith("/users");
   const isProfileRoute = location.pathname.startsWith("/profile");
   const isLoginRoute = location.pathname === "/login";
+  const isGroupSelectorRoute = location.pathname === "/";
   const isGroupFormRoute = /^\/grupo-\d+\/?$/.test(location.pathname);
-  const shouldCenterMainContent = isLoginRoute || isGroupFormRoute;
+  const shouldCenterMainContent = isLoginRoute || isGroupSelectorRoute || isGroupFormRoute;
   const isAuthenticated = Boolean(authToken);
 
   useEffect(() => {
