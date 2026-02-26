@@ -41,6 +41,8 @@ export default function App() {
   const isUsersRoute = location.pathname.startsWith("/users");
   const isProfileRoute = location.pathname.startsWith("/profile");
   const isLoginRoute = location.pathname === "/login";
+  const isGroupFormRoute = /^\/grupo-\d+\/?$/.test(location.pathname);
+  const shouldCenterMainContent = isLoginRoute || isGroupFormRoute;
   const isAuthenticated = Boolean(authToken);
 
   useEffect(() => {
@@ -178,7 +180,7 @@ export default function App() {
         />
       ) : null}
 
-      <div className="page-main">
+      <div className={`page-main ${shouldCenterMainContent ? "page-main-centered" : ""}`}>
         <main
           className={`card ${
             isAdminRoute || isConfigRoute || isUsersRoute || isProfileRoute
