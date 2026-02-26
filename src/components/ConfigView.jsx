@@ -49,6 +49,22 @@ const ACTIVITY_TABLE_SKELETON_COLUMNS = [
 
 const PAGINATION_PAGE_SIZE = 10;
 
+const SettingsSectionIcon = () => {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path
+        d="M12 4.5a1.5 1.5 0 0 1 1.5 1.5v.2a5.8 5.8 0 0 1 1.6.7l.1-.1a1.5 1.5 0 0 1 2.1 2.1l-.1.1a5.8 5.8 0 0 1 .7 1.6h.2a1.5 1.5 0 1 1 0 3h-.2a5.8 5.8 0 0 1-.7 1.6l.1.1a1.5 1.5 0 1 1-2.1 2.1l-.1-.1a5.8 5.8 0 0 1-1.6.7v.2a1.5 1.5 0 1 1-3 0v-.2a5.8 5.8 0 0 1-1.6-.7l-.1.1a1.5 1.5 0 0 1-2.1-2.1l.1-.1a5.8 5.8 0 0 1-.7-1.6h-.2a1.5 1.5 0 1 1 0-3h.2a5.8 5.8 0 0 1 .7-1.6l-.1-.1a1.5 1.5 0 0 1 2.1-2.1l.1.1a5.8 5.8 0 0 1 1.6-.7V6A1.5 1.5 0 0 1 12 4.5Z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <circle cx="12" cy="12" r="2.5" fill="none" stroke="currentColor" strokeWidth="1.6" />
+    </svg>
+  );
+};
+
 const getActivityDetailLabel = (detail) => {
   const value = String(detail || "").trim();
 
@@ -904,7 +920,12 @@ export default function ConfigView({
     <section className="admin config">
       <div className="admin-header">
         <div>
-          <p className="brand">Configuraciones</p>
+          <p className="brand brand-with-icon">
+            <span className="brand-icon" aria-hidden="true">
+              <SettingsSectionIcon />
+            </span>
+            <span>Configuraciones</span>
+          </p>
           <h1 className="title">Configuraciones</h1>
           <p className="subtitle">
             Administre los parámetros del sistema.

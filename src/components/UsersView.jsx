@@ -33,6 +33,23 @@ const getErrorMessageFromResponse = async (response, fallbackMessage) => {
   }
 };
 
+const UsersSectionIcon = () => {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <circle cx="9" cy="8.5" r="2.5" fill="none" stroke="currentColor" strokeWidth="1.8" />
+      <circle cx="16.5" cy="9.5" r="2" fill="none" stroke="currentColor" strokeWidth="1.8" />
+      <path
+        d="M4.5 18a4.5 4.5 0 0 1 9 0M13.5 18a3 3 0 0 1 6 0"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+};
+
 export default function UsersView({ authToken, authUser, onLogout }) {
   const isAuthenticated = Boolean(authToken);
   const isSuperAdmin = true === Boolean(authUser?.isSuperAdmin);
@@ -295,7 +312,12 @@ export default function UsersView({ authToken, authUser, onLogout }) {
     <section className="admin config">
       <div className="admin-header">
         <div>
-          <p className="brand">Administración</p>
+          <p className="brand brand-with-icon">
+            <span className="brand-icon" aria-hidden="true">
+              <UsersSectionIcon />
+            </span>
+            <span>Administración</span>
+          </p>
           <h1 className="title">Usuarios</h1>
           <p className="subtitle">
             Cree usuarios, asígneles grupo y controle su estado de acceso.

@@ -113,6 +113,21 @@ const CheckCircleIcon = () => {
   );
 };
 
+const AdminSectionIcon = () => {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path
+        d="M4 5h16M6 5v14h12V5M9 13l2 2 4-5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+};
+
 export default function AdminView({ authToken, authUser, onLogout }) {
   const navigate = useNavigate();
   const { monthKey: routeMonthKey = "" } = useParams();
@@ -1424,7 +1439,12 @@ export default function AdminView({ authToken, authUser, onLogout }) {
     <section className="admin">
       <div className="admin-header">
         <div>
-          <p className="brand">Panel administrativo</p>
+          <p className="brand brand-with-icon">
+            <span className="brand-icon" aria-hidden="true">
+              <AdminSectionIcon />
+            </span>
+            <span>Panel administrativo</span>
+          </p>
           <h1 className="title">Registros de informes</h1>
         </div>
       </div>

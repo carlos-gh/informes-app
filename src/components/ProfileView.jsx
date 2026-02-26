@@ -1,6 +1,32 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
+const ProfileSectionIcon = () => {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <circle cx="12" cy="8" r="3" fill="none" stroke="currentColor" strokeWidth="1.8" />
+      <path
+        d="M5.5 19a6.5 6.5 0 0 1 13 0"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <rect
+        x="3.5"
+        y="3.5"
+        width="17"
+        height="17"
+        rx="4.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.4"
+      />
+    </svg>
+  );
+};
+
 export default function ProfileView({
   authToken,
   onLogout,
@@ -198,7 +224,12 @@ export default function ProfileView({
     <section className="admin config">
       <div className="admin-header">
         <div>
-          <p className="brand">Cuenta</p>
+          <p className="brand brand-with-icon">
+            <span className="brand-icon" aria-hidden="true">
+              <ProfileSectionIcon />
+            </span>
+            <span>Cuenta</span>
+          </p>
           <h1 className="title">Perfil</h1>
           <p className="subtitle">Cambie su contraseña de acceso.</p>
         </div>
