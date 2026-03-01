@@ -1451,13 +1451,14 @@ input:disabled {
 
 .admin-group-tab {
   position: relative;
-  padding: 11px 18px 10px 14px;
-  min-height: 42px;
-  margin: 0 -1px 0 0;
-  border: 1px solid rgba(148, 163, 184, 0.3);
+  padding: 9px 18px 10px 14px;
+  min-height: 38px;
+  margin: 4px -1px 0 0;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-bottom-color: rgba(148, 163, 184, 0.28);
   border-radius: 0;
-  background: rgba(15, 23, 42, 0.62);
-  color: #cbd5e1;
+  background: rgba(15, 23, 42, 0.45);
+  color: #64748b;
   font-size: 0.86rem;
   font-weight: 600;
   line-height: 1.15;
@@ -1467,8 +1468,8 @@ input:disabled {
   transition:
     border-color 0.22s ease,
     background 0.22s ease,
-    color 0.22s ease;
-  opacity: 0.5;
+    color 0.22s ease,
+    margin-top 0.18s ease;
 }
 
 .admin-group-tab:first-child {
@@ -1480,20 +1481,38 @@ input:disabled {
   border-radius: 0 10px 0 0;
 }
 
-.admin-group-tab:hover {
-  border-color: rgba(148, 163, 184, 0.45);
-  background: rgba(30, 41, 59, 0.82);
+/* Tab único: radio completo arriba */
+.admin-group-tab:only-child {
+  border-radius: 10px 10px 0 0;
+}
+
+.admin-group-tab:hover:not(.active) {
+  border-color: rgba(148, 163, 184, 0.38);
+  background: rgba(30, 41, 59, 0.65);
+  color: #94a3b8;
 }
 
 .admin-group-tab.active {
+  padding-top: 11px;
+  min-height: 42px;
+  margin-top: 0;
   border-color: rgba(148, 163, 184, 0.25);
+  border-bottom-color: transparent;
   background: rgba(148, 163, 184, 0.08);
   color: #f8fafc;
-  box-shadow: none;
-  border-bottom-color: transparent;
-  transform: none;
   z-index: 2;
-  opacity: 1;
+}
+
+/* Línea de acento superior en el tab activo */
+.admin-group-tab.active::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: rgba(99, 102, 241, 0.75);
+  border-radius: 10px 10px 0 0;
 }
 
 .admin-group-tab.active:hover {
@@ -1508,7 +1527,7 @@ input:disabled {
 
 .admin-group-tab:disabled {
   cursor: default;
-  opacity: 0.9;
+  color: #475569;
 }
 
 .admin-group-tab:disabled:hover {
@@ -1869,25 +1888,28 @@ input:disabled {
 }
 
 :root[data-theme="light"] .admin-group-tab {
-  color: #475569;
-  border-color: rgba(148, 163, 184, 0.45);
-  background: #f1f5f9;
+  color: #94a3b8;
+  border-color: rgba(148, 163, 184, 0.4);
+  border-bottom-color: rgba(148, 163, 184, 0.45);
+  background: #e8eef5;
+}
+
+:root[data-theme="light"] .admin-group-tab:hover:not(.active) {
+  border-color: rgba(148, 163, 184, 0.6);
+  background: #dde5ee;
+  color: #64748b;
 }
 
 :root[data-theme="light"] .admin-group-tab.active {
   color: #0f172a;
   border-color: rgba(148, 163, 184, 0.4);
-  background: rgba(148, 163, 184, 0.1);
-}
-
-:root[data-theme="light"] .admin-group-tab:hover {
-  border-color: rgba(148, 163, 184, 0.6);
-  background: #e2e8f0;
+  border-bottom-color: transparent;
+  background: #f8fafc;
 }
 
 :root[data-theme="light"] .admin-group-tab.active:hover {
   border-color: rgba(148, 163, 184, 0.4);
-  background: rgba(148, 163, 184, 0.1);
+  background: #f8fafc;
 }
 
 :root[data-theme="light"] .admin-group-tab.active::before {
