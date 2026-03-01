@@ -1014,7 +1014,7 @@ export default function AdminView({ authToken, authUser, onLogout }) {
   };
 
   const normalizeName = (value) => {
-    return value
+    return String(value)
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
       .toLowerCase()
@@ -1023,14 +1023,43 @@ export default function AdminView({ authToken, authUser, onLogout }) {
       .trim();
   };
 
-  const pendingPeople = useMemo(() => {
-    const reportedNames = new Set(
-      filteredReports.map((report) => normalizeName(report.name || ""))
-    );
+  // Divide un nombre normalizado en palabras individuales
+  const getTokens = (name) =>
+    normalizeName(name)
+      .split(" ")
+      .filter((t) => t.length > 0);
 
+  // Un token "o" hace match con "obando" (inicial), y viceversa
+  const tokenMatches = (a, b) => {
+    if (a === b) return true;
+    if (a.length === 1 && b.startsWith(a)) return true;
+    if (b.length === 1 && a.startsWith(b)) return true;
+    return false;
+  };
+
+  // Verifica si todos los tokens de 'source' están presentes en 'target'
+  const allTokensFoundIn = (sourceTokens, targetTokens) =>
+    sourceTokens.every((st) => targetTokens.some((tt) => tokenMatches(st, tt)));
+
+  // Matching flexible: funciona si el nombre de la BD está contenido en el enviado
+  // o si el nombre enviado está contenido en el de la BD (con soporte de iniciales)
+  const namesMatch = (dbName, submittedName) => {
+    const dbTokens = getTokens(dbName);
+    const subTokens = getTokens(submittedName);
+    if (!dbTokens.length || !subTokens.length) return false;
+    return (
+      allTokensFoundIn(dbTokens, subTokens) ||
+      allTokensFoundIn(subTokens, dbTokens)
+    );
+  };
+
+  const pendingPeople = useMemo(() => {
     return peopleForActiveGroup.filter((person) => {
-      const normalized = normalizeName(person.name || "");
-      return normalized && !reportedNames.has(normalized);
+      const personName = person.name || "";
+      if (!normalizeName(personName)) return false;
+      return !filteredReports.some((report) =>
+        namesMatch(personName, report.name || "")
+      );
     });
   }, [filteredReports, peopleForActiveGroup]);
   const shouldValidatePendingPeople = activeMonthKey === defaultMonthKey;
