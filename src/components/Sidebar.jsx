@@ -17,6 +17,14 @@ const SettingsIcon = () => (
   </svg>
 );
 
+const PeopleIcon = () => (
+  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    <circle cx="9" cy="7" r="4" fill="none" stroke="currentColor" strokeWidth="1.8" />
+    <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
 const UsersIcon = () => (
   <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
     <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
@@ -130,6 +138,12 @@ export default function Sidebar({ authUser, onLogout }) {
               <SettingsIcon />
             </span>
             <span>Configuración</span>
+          </NavLink>
+          <NavLink className={getSidebarLinkClass} to="/people" onClick={close}>
+            <span className="sidebar-link-icon" aria-hidden="true">
+              <PeopleIcon />
+            </span>
+            <span>Personas</span>
           </NavLink>
           {isSuperAdmin && (
             <NavLink className={getSidebarLinkClass} to="/users" onClick={close}>
