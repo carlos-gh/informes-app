@@ -9,6 +9,7 @@ import PageFooter from "./components/PageFooter.jsx";
 import PageHeader from "./components/PageHeader.jsx";
 import ProfileView from "./components/ProfileView.jsx";
 import ReportFormView from "./components/ReportFormView.jsx";
+import Sidebar from "./components/Sidebar.jsx";
 import UsersView from "./components/UsersView.jsx";
 import { getReportingLabelFromKey } from "./utils/reporting.js";
 
@@ -220,102 +221,90 @@ export default function App() {
     setTheme(nextTheme);
   };
 
+  const renderRoutes = () => (
+    <Routes>
+      <Route path="/" element={<GroupSelectorView />} />
+      <Route
+        path="/:groupSlug"
+        element={
+          <GroupSlugRoute
+            isAuthenticated={isAuthenticated}
+            authUser={authUser}
+            authToken={authToken}
+          />
+        }
+      />
+      <Route path="/login" element={<LoginView onLogin={handleLogin} />} />
+      <Route
+        path="/admin"
+        element={
+          <AdminView authToken={authToken} authUser={authUser} onLogout={handleLogout} />
+        }
+      />
+      <Route
+        path="/admin/:monthKey"
+        element={
+          <AdminView authToken={authToken} authUser={authUser} onLogout={handleLogout} />
+        }
+      />
+      <Route
+        path="/config"
+        element={
+          <ConfigView
+            authToken={authToken}
+            authUser={authUser}
+            onLogout={handleLogout}
+            onPublicThemeChange={setPublicTheme}
+          />
+        }
+      />
+      <Route
+        path="/users"
+        element={
+          <UsersView authToken={authToken} authUser={authUser} onLogout={handleLogout} />
+        }
+      />
+      <Route
+        path="/profile"
+        element={
+          <ProfileView
+            authToken={authToken}
+            onLogout={handleLogout}
+            authUser={authUser}
+            onProfileUserUpdate={setAuthUser}
+            theme={theme}
+            onThemeChange={handleThemeChange}
+          />
+        }
+      />
+      <Route path="*" element={<NotFoundView />} />
+    </Routes>
+  );
+
+  if (isAuthenticated) {
+    return (
+      <div className="page page-with-sidebar">
+        <Sidebar authUser={authUser} onLogout={handleLogout} />
+        <div className="sidebar-content">
+          {renderRoutes()}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="page">
-      {isAuthenticated ? (
-        <PageHeader
-          isAuthenticated={isAuthenticated}
-          isLoginRoute={isLoginRoute}
-          authUser={authUser}
-          onLogout={handleLogout}
-        />
-      ) : null}
-
+      <PageHeader
+        isAuthenticated={isAuthenticated}
+        isLoginRoute={isLoginRoute}
+        authUser={authUser}
+        onLogout={handleLogout}
+      />
       <div className={`page-main ${shouldCenterMainContent ? "page-main-centered" : ""}`}>
-        <main
-          className={`card ${
-            isAdminRoute || isConfigRoute || isUsersRoute || isProfileRoute
-              ? "card-wide"
-              : ""
-          }`}
-        >
-          <Routes>
-            <Route
-              path="/"
-              element={
-                <GroupSelectorView />
-              }
-            />
-            <Route
-              path="/:groupSlug"
-              element={
-                <GroupSlugRoute
-                  isAuthenticated={isAuthenticated}
-                  authUser={authUser}
-                  authToken={authToken}
-                />
-              }
-            />
-            <Route path="/login" element={<LoginView onLogin={handleLogin} />} />
-            <Route
-              path="/admin"
-              element={
-                <AdminView
-                  authToken={authToken}
-                  authUser={authUser}
-                  onLogout={handleLogout}
-                />
-              }
-            />
-            <Route
-              path="/admin/:monthKey"
-              element={
-                <AdminView
-                  authToken={authToken}
-                  authUser={authUser}
-                  onLogout={handleLogout}
-                />
-              }
-            />
-            <Route
-              path="/config"
-              element={
-                <ConfigView
-                  authToken={authToken}
-                  authUser={authUser}
-                  onLogout={handleLogout}
-                  onPublicThemeChange={setPublicTheme}
-                />
-              }
-            />
-            <Route
-              path="/users"
-              element={
-                <UsersView
-                  authToken={authToken}
-                  authUser={authUser}
-                  onLogout={handleLogout}
-                />
-              }
-            />
-            <Route
-              path="/profile"
-              element={
-                <ProfileView
-                  authToken={authToken}
-                  onLogout={handleLogout}
-                  authUser={authUser}
-                  onProfileUserUpdate={setAuthUser}
-                  theme={theme}
-                  onThemeChange={handleThemeChange}
-                />
-              }
-            />
-            <Route path="*" element={<NotFoundView />} />
-          </Routes>
+        <main className="card">
+          {renderRoutes()}
         </main>
       </div>
-
       <PageFooter
         isAuthenticated={isAuthenticated}
         isLoginRoute={isLoginRoute}
