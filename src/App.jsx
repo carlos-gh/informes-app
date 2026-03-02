@@ -294,13 +294,7 @@ export default function App() {
 
   return (
     <div className="page">
-      <PageHeader
-        isAuthenticated={isAuthenticated}
-        isLoginRoute={isLoginRoute}
-        authUser={authUser}
-        onLogout={handleLogout}
-      />
-      <div className={`page-main ${shouldCenterMainContent ? "page-main-centered" : ""}`}>
+      <div className="page-main page-main-centered">
         <main className="card">
           {renderRoutes()}
         </main>
