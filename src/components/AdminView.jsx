@@ -165,6 +165,9 @@ export default function AdminView({ authToken, authUser, onLogout }) {
     cancelLabel: "Cancelar",
   });
   const [confirmResolver, setConfirmResolver] = useState(null);
+  const [isTrashOpen, setIsTrashOpen] = useState(false);
+  const [deletedReports, setDeletedReports] = useState([]);
+  const [isLoadingTrash, setIsLoadingTrash] = useState(false);
 
   const isAuthenticated = Boolean(authToken);
   const isSuperAdmin = true === Boolean(authUser?.isSuperAdmin);
@@ -561,6 +564,26 @@ export default function AdminView({ authToken, authUser, onLogout }) {
 
     return Array.from(summary.values());
   }, [reportsForActiveGroup, lastMonthKeys]);
+
+  const currentMonthStats = useMemo(() => {
+    let totalReports = 0;
+    let totalHours = 0;
+    let totalCourses = 0;
+    let precursors = 0;
+
+    filteredReports.forEach((r) => {
+      totalReports += 1;
+      const h = Number.parseFloat(r.hours);
+      const c = Number.parseFloat(r.courses);
+      if (!Number.isNaN(h)) totalHours += h;
+      if (!Number.isNaN(c)) totalCourses += c;
+      if (r.designation === "Precursor Auxiliar" || r.designation === "Precursor Regular") {
+        precursors += 1;
+      }
+    });
+
+    return { totalReports, totalHours, totalCourses, precursors };
+  }, [filteredReports]);
 
   const updateAdminForm = (field, value) => {
     setAdminForm((previous) => ({
@@ -1311,6 +1334,56 @@ export default function AdminView({ authToken, authUser, onLogout }) {
     document.save(`informes-${safeGroupLabel}-${monthKey}.pdf`);
   };
 
+  const openTrash = async () => {
+    setIsTrashOpen(true);
+    setIsLoadingTrash(true);
+    try {
+      const response = await fetch("/api/reports?deleted=true");
+      if (!response.ok) throw new Error("No se pudo cargar la papelera.");
+      const data = await response.json();
+      setDeletedReports(data.items || []);
+    } catch {
+      setDeletedReports([]);
+    } finally {
+      setIsLoadingTrash(false);
+    }
+  };
+
+  const handleRestore = async (reportId) => {
+    try {
+      const response = await fetch(`/api/reports?id=${reportId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "restore" }),
+      });
+      if (!response.ok) throw new Error("No se pudo restaurar el registro.");
+      setDeletedReports((prev) => prev.filter((r) => r.id !== reportId));
+      await loadReports();
+    } catch (error) {
+      setSubmitStatus("error");
+      setSubmitMessage(String(error.message || "Error al restaurar."));
+    }
+  };
+
+  const handlePermanentDelete = async (reportId) => {
+    const isConfirmed = await requestConfirmation({
+      title: "Eliminar permanentemente",
+      message: "Esta acción no se puede deshacer. ¿Desea eliminar este registro de forma definitiva?",
+      confirmLabel: "Eliminar definitivamente",
+    });
+    if (!isConfirmed) return;
+    try {
+      const response = await fetch(`/api/reports?id=${reportId}&permanent=true`, {
+        method: "DELETE",
+      });
+      if (!response.ok) throw new Error("No se pudo eliminar el registro.");
+      setDeletedReports((prev) => prev.filter((r) => r.id !== reportId));
+    } catch (error) {
+      setSubmitStatus("error");
+      setSubmitMessage(String(error.message || "Error al eliminar."));
+    }
+  };
+
   const handleEdit = (report) => {
     if (closedMonthKeySet.has(report.reportMonthKey)) {
       setSubmitStatus("error");
@@ -1382,7 +1455,7 @@ export default function AdminView({ authToken, authUser, onLogout }) {
       }
 
       setSubmitStatus("success");
-      setSubmitMessage("El registro fue eliminado.");
+      setSubmitMessage("El registro fue enviado a la papelera.");
       await loadReports();
     } catch (error) {
       setSubmitStatus("error");
@@ -1497,7 +1570,63 @@ export default function AdminView({ authToken, authUser, onLogout }) {
           </p>
           <h1 className="title">Registros de informes</h1>
         </div>
+        <div className="admin-header-actions">
+          <button className="trash-button" type="button" onClick={openTrash}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <polyline points="3 6 5 6 21 6" />
+              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+              <path d="M10 11v6M14 11v6" />
+              <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+            </svg>
+            Papelera
+          </button>
+        </div>
       </div>
+
+      {!isDetailView && !isLoading && (activeGroupNumber !== null || activeGroupIsUngrouped) && (
+        <div className="stats-summary-row">
+          <div className="stat-summary-card">
+            <div className="stat-summary-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z" />
+              </svg>
+            </div>
+            <span className="stat-summary-value">{currentMonthStats.totalReports}</span>
+            <span className="stat-summary-label">Informes</span>
+          </div>
+          <div className="stat-summary-card">
+            <div className="stat-summary-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="9" />
+                <path d="M12 7v5l3 3" />
+              </svg>
+            </div>
+            <span className="stat-summary-value">{currentMonthStats.totalHours}</span>
+            <span className="stat-summary-label">Horas</span>
+          </div>
+          <div className="stat-summary-card">
+            <div className="stat-summary-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+              </svg>
+            </div>
+            <span className="stat-summary-value">{currentMonthStats.totalCourses}</span>
+            <span className="stat-summary-label">Cursos</span>
+          </div>
+          <div className="stat-summary-card">
+            <div className="stat-summary-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+              </svg>
+            </div>
+            <span className="stat-summary-value">{currentMonthStats.precursors}</span>
+            <span className="stat-summary-label">Precursores</span>
+          </div>
+        </div>
+      )}
 
       <div className="admin-group-shell">
         <div className="admin-group-tabs" role="tablist" aria-label="Grupos de informes">
@@ -1681,6 +1810,77 @@ export default function AdminView({ authToken, authUser, onLogout }) {
           </div>
         </section>
       </div>
+
+      {isTrashOpen ? (
+        <div className="modal-overlay" role="dialog" aria-modal="true" aria-label="Papelera">
+          <div className="modal modal-wide">
+            <div className="modal-header">
+              <div>
+                <p className="brand">Informes eliminados</p>
+                <h2 className="modal-title">Papelera</h2>
+              </div>
+              <button className="modal-close" type="button" onClick={() => setIsTrashOpen(false)}>
+                Cerrar
+              </button>
+            </div>
+            <div className="modal-body">
+              {isLoadingTrash ? (
+                <div style={{ padding: "24px 0" }}>
+                  <span className="skeleton-line skeleton-xl" />
+                  <span className="skeleton-line skeleton-lg" style={{ marginTop: 10 }} />
+                  <span className="skeleton-line skeleton-md" style={{ marginTop: 10 }} />
+                </div>
+              ) : deletedReports.length === 0 ? (
+                <p className="subtitle" style={{ textAlign: "center", padding: "24px 0" }}>
+                  La papelera está vacía.
+                </p>
+              ) : (
+                <div className="table-wrapper">
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th>Nombre</th>
+                        <th>Mes</th>
+                        <th>Grupo</th>
+                        <th>Eliminado</th>
+                        <th>Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {deletedReports.map((r) => (
+                        <tr key={r.id}>
+                          <td>{r.name}</td>
+                          <td>{r.reportMonthLabel || r.reportMonthKey}</td>
+                          <td>{r.groupNumber ? `Grupo ${r.groupNumber}` : "—"}</td>
+                          <td>{r.deletedAt ? formatDateTime(r.deletedAt) : "—"}</td>
+                          <td>
+                            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                              <button
+                                className="restore-button"
+                                type="button"
+                                onClick={() => handleRestore(r.id)}
+                              >
+                                Restaurar
+                              </button>
+                              <button
+                                className="table-button danger"
+                                type="button"
+                                onClick={() => handlePermanentDelete(r.id)}
+                              >
+                                Eliminar
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {isModalOpen ? (
         <div className="modal-overlay" role="dialog" aria-modal="true">

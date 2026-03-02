@@ -35,6 +35,7 @@ const ensureReportsTable = async () => {
   await sql`ALTER TABLE reports ADD COLUMN IF NOT EXISTS group_number INTEGER;`;
   await sql`ALTER TABLE reports ALTER COLUMN designation SET DEFAULT 'Publicador';`;
   await sql`UPDATE reports SET designation = 'Publicador' WHERE designation IS NULL OR designation = '';`;
+  await sql`ALTER TABLE reports ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;`;
 };
 
 const ensureReportPeriodsTable = async () => {
@@ -297,6 +298,57 @@ export default async function handler(req, res) {
       }
 
       try {
+        // Trash listing: return soft-deleted reports
+        if (req.query.deleted === "true") {
+          let trashedResult;
+
+          if (isSuperAdmin(auth)) {
+            trashedResult = await sql`
+              SELECT
+                id,
+                report_month_key AS "reportMonthKey",
+                report_month_label AS "reportMonthLabel",
+                group_number AS "groupNumber",
+                name,
+                participation,
+                designation,
+                hours,
+                courses,
+                comments,
+                submitted_at AS "submittedAt",
+                deleted_at AS "deletedAt"
+              FROM reports
+              WHERE deleted_at IS NOT NULL
+              ORDER BY deleted_at DESC;
+            `;
+          } else if (auth.groupNumber === null || auth.groupNumber === undefined) {
+            trashedResult = { rows: [] };
+          } else {
+            trashedResult = await sql`
+              SELECT
+                id,
+                report_month_key AS "reportMonthKey",
+                report_month_label AS "reportMonthLabel",
+                group_number AS "groupNumber",
+                name,
+                participation,
+                designation,
+                hours,
+                courses,
+                comments,
+                submitted_at AS "submittedAt",
+                deleted_at AS "deletedAt"
+              FROM reports
+              WHERE deleted_at IS NOT NULL
+                AND group_number = ${auth.groupNumber}
+              ORDER BY deleted_at DESC;
+            `;
+          }
+
+          res.status(200).json({ items: trashedResult.rows });
+          return;
+        }
+
         let reportsResult;
 
         if (isSuperAdmin(auth)) {
@@ -314,6 +366,7 @@ export default async function handler(req, res) {
               comments,
               submitted_at AS "submittedAt"
             FROM reports
+            WHERE deleted_at IS NULL
             ORDER BY submitted_at DESC;
           `;
         } else if (auth.groupNumber === null || auth.groupNumber === undefined) {
@@ -333,7 +386,8 @@ export default async function handler(req, res) {
               comments,
               submitted_at AS "submittedAt"
             FROM reports
-            WHERE group_number = ${auth.groupNumber}
+            WHERE deleted_at IS NULL
+              AND group_number = ${auth.groupNumber}
             ORDER BY submitted_at DESC;
           `;
         }
@@ -405,7 +459,8 @@ export default async function handler(req, res) {
             SELECT COUNT(*)::int AS total
             FROM reports
             WHERE report_month_key = ${reportMonthKey}
-              AND group_number = ${actionGroupNumber};
+              AND group_number = ${actionGroupNumber}
+              AND deleted_at IS NULL;
           `;
 
           const totalReports = Number(monthReports.rows[0]?.total || 0);
@@ -594,6 +649,40 @@ export default async function handler(req, res) {
         return;
       }
 
+      // Restore action: undo soft delete
+      if (String(body.action || "").trim() === "restore") {
+        const trashedReport = await sql`
+          SELECT
+            id,
+            group_number AS "groupNumber"
+          FROM reports
+          WHERE id = ${reportId}
+            AND deleted_at IS NOT NULL
+          LIMIT 1;
+        `;
+
+        const existing = trashedReport.rows[0] || null;
+
+        if (!existing) {
+          res.status(404).json({ error: "Report not found in trash" });
+          return;
+        }
+
+        if (!canAccessReportGroup(auth, existing.groupNumber)) {
+          res.status(403).json({ error: "Forbidden" });
+          return;
+        }
+
+        await sql`
+          UPDATE reports
+          SET deleted_at = NULL
+          WHERE id = ${reportId};
+        `;
+
+        res.status(200).json({ ok: true, id: reportId });
+        return;
+      }
+
       const reportMonthKey = String(body.reportMonthKey || "").trim();
       const reportMonthLabel = getReportMonthLabel(reportMonthKey);
 
@@ -625,6 +714,7 @@ export default async function handler(req, res) {
           group_number AS "groupNumber"
         FROM reports
         WHERE id = ${reportId}
+          AND deleted_at IS NULL
         LIMIT 1;
       `;
 
@@ -696,6 +786,7 @@ export default async function handler(req, res) {
     if (req.method === "DELETE") {
       const auth = await getCurrentAuth(req);
       const reportId = getReportIdFromRequest(req);
+      const isPermanent = req.query.permanent === "true";
 
       if (!auth) {
         res.status(401).json({ error: "Unauthorized" });
@@ -707,12 +798,54 @@ export default async function handler(req, res) {
         return;
       }
 
+      // Permanent delete: only for already soft-deleted reports
+      if (isPermanent) {
+        const trashedReport = await sql`
+          SELECT
+            id,
+            group_number AS "groupNumber"
+          FROM reports
+          WHERE id = ${reportId}
+            AND deleted_at IS NOT NULL
+          LIMIT 1;
+        `;
+
+        const existing = trashedReport.rows[0] || null;
+
+        if (!existing) {
+          res.status(404).json({ error: "Report not found in trash" });
+          return;
+        }
+
+        if (!canAccessReportGroup(auth, existing.groupNumber)) {
+          res.status(403).json({ error: "Forbidden" });
+          return;
+        }
+
+        const permanentResult = await sql`
+          DELETE FROM reports
+          WHERE id = ${reportId}
+            AND deleted_at IS NOT NULL
+          RETURNING id;
+        `;
+
+        if (permanentResult.rows.length === 0) {
+          res.status(404).json({ error: "Report not found" });
+          return;
+        }
+
+        res.status(200).json({ ok: true, id: permanentResult.rows[0].id });
+        return;
+      }
+
+      // Soft delete: move to trash
       const currentReport = await sql`
         SELECT
           report_month_key AS "reportMonthKey",
           group_number AS "groupNumber"
         FROM reports
         WHERE id = ${reportId}
+          AND deleted_at IS NULL
         LIMIT 1;
       `;
 
@@ -739,8 +872,10 @@ export default async function handler(req, res) {
       }
 
       const result = await sql`
-        DELETE FROM reports
+        UPDATE reports
+        SET deleted_at = NOW()
         WHERE id = ${reportId}
+          AND deleted_at IS NULL
         RETURNING id;
       `;
 
