@@ -67,6 +67,10 @@ ChartJS.register(
 const CLOSED_PERIODS_SKELETON_ITEMS = Array.from({ length: 3 }, (_, index) => index);
 const OPEN_PERIODS_SKELETON_ITEMS = Array.from({ length: 2 }, (_, index) => index);
 
+// Module-level cache — persists across React Router remounts so navigating
+// away and back does not trigger a full reload.
+let _adminCache = null;
+
 const CalendarIcon = () => {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -701,8 +705,16 @@ export default function AdminView({ authToken, authUser, onLogout }) {
     }
   };
 
-  const loadReports = async () => {
+  const loadReports = async ({ forceRefresh = false } = {}) => {
     if (!isAuthenticated) {
+      return;
+    }
+
+    const cacheKey = authUser?.username;
+
+    if (!forceRefresh && _adminCache && _adminCache.username === cacheKey && _adminCache.reports) {
+      setReports(_adminCache.reports);
+      setPeriods(_adminCache.periods || []);
       return;
     }
 
@@ -723,8 +735,11 @@ export default function AdminView({ authToken, authUser, onLogout }) {
       }
 
       const data = await response.json();
-      setReports(data.items || []);
-      setPeriods(data.periods || []);
+      const nextReports = data.items || [];
+      const nextPeriods = data.periods || [];
+      setReports(nextReports);
+      setPeriods(nextPeriods);
+      _adminCache = { ..._adminCache, username: cacheKey, reports: nextReports, periods: nextPeriods };
     } catch (error) {
       setLoadError("No se pudieron cargar los registros.");
     } finally {
@@ -762,8 +777,15 @@ export default function AdminView({ authToken, authUser, onLogout }) {
     }));
   };
 
-  const loadPeople = async () => {
+  const loadPeople = async ({ forceRefresh = false } = {}) => {
     if (!isAuthenticated) {
+      return;
+    }
+
+    const cacheKey = authUser?.username;
+
+    if (!forceRefresh && _adminCache && _adminCache.username === cacheKey && _adminCache.people) {
+      setPeople(_adminCache.people);
       return;
     }
 
@@ -783,15 +805,24 @@ export default function AdminView({ authToken, authUser, onLogout }) {
       }
 
       const data = await response.json();
-      setPeople(data.items || []);
+      const nextPeople = data.items || [];
+      setPeople(nextPeople);
       setPendingError("");
+      _adminCache = { ..._adminCache, username: cacheKey, people: nextPeople };
     } catch (error) {
       setPendingError("No se pudieron cargar las personas.");
     }
   };
 
-  const loadGroups = async () => {
+  const loadGroups = async ({ forceRefresh = false } = {}) => {
     if (!isAuthenticated) {
+      return;
+    }
+
+    const cacheKey = authUser?.username;
+
+    if (!forceRefresh && _adminCache && _adminCache.username === cacheKey && _adminCache.groups) {
+      setGroups(_adminCache.groups);
       return;
     }
 
@@ -808,7 +839,9 @@ export default function AdminView({ authToken, authUser, onLogout }) {
       }
 
       const data = await response.json();
-      setGroups(data.items || []);
+      const nextGroups = data.items || [];
+      setGroups(nextGroups);
+      _adminCache = { ..._adminCache, username: cacheKey, groups: nextGroups };
     } catch (error) {
       setGroups([]);
     }
@@ -970,7 +1003,7 @@ export default function AdminView({ authToken, authUser, onLogout }) {
       setSubmitMessage(
         "Periodo completado correctamente. Este mes ahora está en modo vista previa."
       );
-      await loadReports();
+      await loadReports({ forceRefresh: true });
     } catch (error) {
       setSubmitStatus("error");
       setSubmitMessage(String(error.message || "No se pudo cerrar el periodo."));
@@ -1029,7 +1062,7 @@ export default function AdminView({ authToken, authUser, onLogout }) {
 
       setSubmitStatus("success");
       setSubmitMessage("Periodo reabierto correctamente. Ya puede editar registros.");
-      await loadReports();
+      await loadReports({ forceRefresh: true });
     } catch (error) {
       setSubmitStatus("error");
       setSubmitMessage(String(error.message || "No se pudo reabrir el periodo."));
@@ -1358,7 +1391,7 @@ export default function AdminView({ authToken, authUser, onLogout }) {
       });
       if (!response.ok) throw new Error("No se pudo restaurar el registro.");
       setDeletedReports((prev) => prev.filter((r) => r.id !== reportId));
-      await loadReports();
+      await loadReports({ forceRefresh: true });
     } catch (error) {
       setSubmitStatus("error");
       setSubmitMessage(String(error.message || "Error al restaurar."));
@@ -1456,7 +1489,7 @@ export default function AdminView({ authToken, authUser, onLogout }) {
 
       setSubmitStatus("success");
       setSubmitMessage("El registro fue enviado a la papelera.");
-      await loadReports();
+      await loadReports({ forceRefresh: true });
     } catch (error) {
       setSubmitStatus("error");
       setSubmitMessage(String(error.message || "No se pudo eliminar el registro."));
@@ -1539,7 +1572,7 @@ export default function AdminView({ authToken, authUser, onLogout }) {
       );
       resetAdminForm(defaultMonthKey);
       setIsModalOpen(false);
-      await loadReports();
+      await loadReports({ forceRefresh: true });
     } catch (error) {
       setSubmitStatus("error");
       setSubmitMessage(String(error.message || "No se pudo guardar el registro."));
@@ -1583,7 +1616,7 @@ export default function AdminView({ authToken, authUser, onLogout }) {
         </div>
       </div>
 
-      {!isDetailView && !isLoading && (activeGroupNumber !== null || activeGroupIsUngrouped) && (
+      {!isDetailView && (activeGroupNumber !== null || activeGroupIsUngrouped) && (
         <div className="stats-summary-row">
           <div className="stat-summary-card">
             <div className="stat-summary-icon">
@@ -1591,18 +1624,12 @@ export default function AdminView({ authToken, authUser, onLogout }) {
                 <path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z" />
               </svg>
             </div>
-            <span className="stat-summary-value">{currentMonthStats.totalReports}</span>
+            {isLoading ? (
+              <span className="skeleton-line skeleton-md stat-summary-skeleton" />
+            ) : (
+              <span className="stat-summary-value">{currentMonthStats.totalReports}</span>
+            )}
             <span className="stat-summary-label">Informes</span>
-          </div>
-          <div className="stat-summary-card">
-            <div className="stat-summary-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <circle cx="12" cy="12" r="9" />
-                <path d="M12 7v5l3 3" />
-              </svg>
-            </div>
-            <span className="stat-summary-value">{currentMonthStats.totalHours}</span>
-            <span className="stat-summary-label">Horas</span>
           </div>
           <div className="stat-summary-card">
             <div className="stat-summary-icon">
@@ -1611,7 +1638,11 @@ export default function AdminView({ authToken, authUser, onLogout }) {
                 <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
               </svg>
             </div>
-            <span className="stat-summary-value">{currentMonthStats.totalCourses}</span>
+            {isLoading ? (
+              <span className="skeleton-line skeleton-md stat-summary-skeleton" />
+            ) : (
+              <span className="stat-summary-value">{currentMonthStats.totalCourses}</span>
+            )}
             <span className="stat-summary-label">Cursos</span>
           </div>
           <div className="stat-summary-card">
@@ -1622,7 +1653,11 @@ export default function AdminView({ authToken, authUser, onLogout }) {
                 <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
               </svg>
             </div>
-            <span className="stat-summary-value">{currentMonthStats.precursors}</span>
+            {isLoading ? (
+              <span className="skeleton-line skeleton-md stat-summary-skeleton" />
+            ) : (
+              <span className="stat-summary-value">{currentMonthStats.precursors}</span>
+            )}
             <span className="stat-summary-label">Precursores</span>
           </div>
         </div>
