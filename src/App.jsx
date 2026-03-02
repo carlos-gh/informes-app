@@ -7,6 +7,7 @@ import LoginView from "./components/LoginView.jsx";
 import NotFoundView from "./components/NotFoundView.jsx";
 import PageFooter from "./components/PageFooter.jsx";
 import PageHeader from "./components/PageHeader.jsx";
+import PeopleView from "./components/PeopleView.jsx";
 import ProfileView from "./components/ProfileView.jsx";
 import ReportFormView from "./components/ReportFormView.jsx";
 import Sidebar from "./components/Sidebar.jsx";
@@ -162,6 +163,11 @@ export default function App() {
       return;
     }
 
+    if ("/people" === location.pathname) {
+      document.title = "Personas | Congregación El Puente Monte Tabor";
+      return;
+    }
+
     if ("/users" === location.pathname) {
       document.title = "Usuarios | Congregación El Puente Monte Tabor";
       return;
@@ -256,6 +262,12 @@ export default function App() {
             onLogout={handleLogout}
             onPublicThemeChange={setPublicTheme}
           />
+        }
+      />
+      <Route
+        path="/people"
+        element={
+          <PeopleView authToken={authToken} authUser={authUser} onLogout={handleLogout} />
         }
       />
       <Route
