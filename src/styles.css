@@ -1473,17 +1473,16 @@ input:disabled {
 }
 
 .admin-group-tab:first-child {
-  border-radius: 10px 0 0 0;
+  border-radius: 0;
 }
 
 .admin-group-tab:last-child {
   margin-right: 0;
-  border-radius: 0 10px 0 0;
+  border-radius: 0;
 }
 
-/* Tab único: radio completo arriba */
 .admin-group-tab:only-child {
-  border-radius: 10px 10px 0 0;
+  border-radius: 0;
 }
 
 .admin-group-tab:hover:not(.active) {
@@ -2061,13 +2060,12 @@ input:disabled {
 .page-with-sidebar {
   display: grid;
   grid-template-columns: 240px 1fr;
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
 }
 
 /* ---- Sidebar panel ---- */
 .app-sidebar {
-  position: sticky;
-  top: 0;
   height: 100vh;
   display: flex;
   flex-direction: column;
@@ -2258,7 +2256,8 @@ input:disabled {
 
 /* ---- Sidebar content area ---- */
 .sidebar-content {
-  min-height: 100vh;
+  height: 100vh;
+  overflow-y: auto;
   background: #0b1120;
   padding: 28px 28px 40px;
   min-width: 0;
