@@ -1312,10 +1312,25 @@ export default function AdminView({ authToken, authUser, onLogout }) {
       return;
     }
 
+    const designationOrder = {
+      Publicador: 0,
+      "Precursor Auxiliar": 1,
+      "Precursor Regular": 2,
+    };
+
+    const sortedReports = [...monthReports].sort((a, b) => {
+      const desigA = designationOrder[a.designation] ?? 0;
+      const desigB = designationOrder[b.designation] ?? 0;
+      if (desigA !== desigB) return desigA - desigB;
+      return (a.name || "").localeCompare(b.name || "", "es", {
+        sensitivity: "base",
+      });
+    });
+
     let totalHours = 0;
     let totalCourses = 0;
 
-    monthReports.forEach((report, index) => {
+    sortedReports.forEach((report, index) => {
       y = ensureSpace(y);
       const hoursValue = Number.parseFloat(report.hours);
       const coursesValue = Number.parseFloat(report.courses);
