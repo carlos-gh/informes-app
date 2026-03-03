@@ -1,6 +1,13 @@
 import { useState } from "react";
 import { NavLink } from "react-router-dom";
 
+const HomeIcon = () => (
+  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+    <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V9.5z" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M9 21V12h6v9" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
 const DashboardIcon = () => (
   <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
     <rect x="3" y="3" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
@@ -127,6 +134,12 @@ export default function Sidebar({ authUser, onLogout }) {
 
         {/* Nav links */}
         <nav className="sidebar-nav" aria-label="Navegación principal">
+          <NavLink className={getSidebarLinkClass} to="/" end onClick={close}>
+            <span className="sidebar-link-icon" aria-hidden="true">
+              <HomeIcon />
+            </span>
+            <span>Inicio</span>
+          </NavLink>
           <NavLink className={getSidebarLinkClass} to="/admin" onClick={close}>
             <span className="sidebar-link-icon" aria-hidden="true">
               <DashboardIcon />
